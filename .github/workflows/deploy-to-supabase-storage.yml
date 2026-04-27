@@ -36,18 +36,32 @@ jobs:
 
           SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
 
-          create_bucket_response=$(
+          bucket_lookup_response=$(
             curl -sS -o /dev/null -w "%{http_code}" \
-              -X POST "${SUPABASE_URL}/storage/v1/bucket" \
+              -X GET "${SUPABASE_URL}/storage/v1/bucket/${SUPABASE_STORAGE_BUCKET}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-              -H "Content-Type: application/json" \
-              --data "{\"name\":\"${SUPABASE_STORAGE_BUCKET}\",\"public\":true}"
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}"
           )
 
-          if [[ "${create_bucket_response}" != "200" && "${create_bucket_response}" != "409" ]]; then
-            echo "Bucket creation failed with HTTP ${create_bucket_response}" >&2
+          if [[ "${bucket_lookup_response}" != "200" && "${bucket_lookup_response}" != "404" ]]; then
+            echo "Bucket lookup failed with HTTP ${bucket_lookup_response}" >&2
             exit 1
+          fi
+
+          if [[ "${bucket_lookup_response}" == "404" ]]; then
+            create_bucket_response=$(
+              curl -sS -o /dev/null -w "%{http_code}" \
+                -X POST "${SUPABASE_URL}/storage/v1/bucket" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Content-Type: application/json" \
+                --data "{\"id\":\"${SUPABASE_STORAGE_BUCKET}\",\"name\":\"${SUPABASE_STORAGE_BUCKET}\",\"public\":true}"
+            )
+
+            if [[ "${create_bucket_response}" != "200" && "${create_bucket_response}" != "201" && "${create_bucket_response}" != "409" ]]; then
+              echo "Bucket creation failed with HTTP ${create_bucket_response}" >&2
+              exit 1
+            fi
           fi
 
           upload_file() {
