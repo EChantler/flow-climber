@@ -28,3 +28,5 @@ This repo includes a GitHub Actions workflow at `.github/workflows/deploy-to-sup
 After deploy, the game is available at:
 
 `https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>/index.html`
+
+If the page shows as plain text, rerun the workflow after this MIME type fix so the existing object metadata gets overwritten.

@@ -63,9 +63,9 @@ jobs:
               --data-binary "@${source_path}" >/dev/null
           }
 
-          upload_file "index.html" "index.html" "text/html; charset=utf-8"
-          upload_file "game.js" "game.js" "application/javascript; charset=utf-8"
-          upload_file "telemetry.js" "telemetry.js" "application/javascript; charset=utf-8"
-          upload_file "spawn-worker.js" "spawn-worker.js" "application/javascript; charset=utf-8"
+          upload_file "index.html" "index.html" "text/html"
+          upload_file "game.js" "game.js" "application/javascript"
+          upload_file "telemetry.js" "telemetry.js" "application/javascript"
+          upload_file "spawn-worker.js" "spawn-worker.js" "application/javascript"
 
           echo "Deployed to ${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_STORAGE_BUCKET}/index.html"
