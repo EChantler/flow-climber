@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlowClimb V2</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #0f1722;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-root {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      display: block !important;
+      margin: 0 auto !important;
+      max-width: 100vw;
+      max-height: 100vh;
+      image-rendering: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-root"></div>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+    window.__FLOWCLIMB_TELEMETRY__ = {
+      supabaseUrl: "https://sswtkbugpcypitxuvvit.supabase.co",
+      supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3RrYnVncGN5cGl0eHV2dml0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzA1MDUsImV4cCI6MjA5MjgwNjUwNX0._bWUydcLpHEOuUGuXccaA-XoxHKFY-anYcGPCGadTcA",
+      tableName: "telemetry",
+      participantTokenStorageKey: "flowclimb_participant_token",
+      batchSize: 12,
+      flushIntervalMs: 15000,
+    }
+  </script>
+  <script src="./telemetry.js?v=0.2.25"></script>
+  <script src="./game.js?v=0.2.25"></script>
+</body>
+</html>
