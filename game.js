@@ -76,7 +76,7 @@ const FALL_BELOW_LOWEST_PLATFORM_MARGIN = 120
 const MIN_PLATFORM_GAP_Y = Math.ceil(PLAYER_HEIGHT * 1.5)
 const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
-const GAME_VERSION = "v0.2.25"
+const GAME_VERSION = "v0.2.26"
 const WORLD_ZOOM = 0.9
 
 class EndlessClimberScene extends Phaser.Scene {
@@ -86,6 +86,7 @@ class EndlessClimberScene extends Phaser.Scene {
 
   create() {
     this.graphics = this.add.graphics()
+    this.cameras.main.setBackgroundColor("#0f1722")
     this.cursors = this.input.keyboard.createCursorKeys()
     this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A)
     this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
@@ -114,6 +115,16 @@ class EndlessClimberScene extends Phaser.Scene {
       fontSize: "22px",
       color: "#d6deea",
     }).setOrigin(0.5).setVisible(false)
+    this.accessOverlay = this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 12, "Checking access token...", {
+      fontSize: "34px",
+      color: "#ffffff",
+      backgroundColor: "rgba(10, 14, 20, 0.72)",
+      padding: { x: 16, y: 10 },
+    }).setOrigin(0.5).setVisible(true)
+    this.accessOverlayHint = this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 34, "", {
+      fontSize: "20px",
+      color: "#d6deea",
+    }).setOrigin(0.5).setVisible(true)
     this.unstuckOverlay = this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 118, "", {
       fontSize: "20px",
       color: "#ffe08a",
@@ -130,7 +141,8 @@ class EndlessClimberScene extends Phaser.Scene {
     this.latestSpawnRequestId = 0
     this.lastFlagTimestamp = Date.now()
     this.deathCount = 0
-    this.gameReady = true
+    this.accessBlocked = false
+    this.gameReady = false
     this.isPaused = false
     this.jumpBufferExpiresAt = 0
     this.coyoteExpiresAt = 0
@@ -140,10 +152,40 @@ class EndlessClimberScene extends Phaser.Scene {
     this.deathTimestamps = []
     this.unstuckAvailable = false
 
-    this.initializeSpawnWorker()
-    this.initializeTelemetry()
-    this.resetWorld()
-    this.logTelemetry("session_start", 0, { version: GAME_VERSION })
+    void this.bootstrapAccessControl()
+  }
+
+  async bootstrapAccessControl() {
+    this.setAccessOverlay("Checking access token...", "Submitting startup event.")
+
+    try {
+      const telemetryConfig = this.resolveTelemetryConfig()
+      this.initializeTelemetry(telemetryConfig)
+      if (!this.telemetry.enabled) {
+        this.blockAccess("Could not initialize access check", "Refresh and try again.")
+        return
+      }
+
+      this.logTelemetry("session_start", 0, { version: GAME_VERSION })
+
+      const accepted = await this.flushTelemetry()
+      if (!accepted || this.accessBlocked) {
+        if (!this.accessBlocked) {
+          this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
+        }
+        return
+      }
+
+      this.initializeSpawnWorker()
+      this.telemetry.start()
+      this.resetWorld()
+      this.gameReady = true
+      this.accessOverlay.setVisible(false)
+      this.accessOverlayHint.setVisible(false)
+    } catch (error) {
+      console.error("Access validation failed:", error)
+      this.blockAccess("Could not validate access token", "Refresh and try again.")
+    }
   }
 
   resetWorld() {
@@ -764,26 +806,59 @@ class EndlessClimberScene extends Phaser.Scene {
     this.unstuckOverlay.setVisible(this.unstuckAvailable)
   }
 
-  initializeTelemetry() {
-    const telemetryConfig = this.resolveTelemetryConfig()
-    this.telemetry = createTelemetryManager(telemetryConfig)
+  initializeTelemetry(telemetryConfig = null) {
+    const config = telemetryConfig || this.resolveTelemetryConfig()
+    this.telemetry = createTelemetryManager({
+      ...config,
+      onAccessDenied: (error) => this.handleTelemetryAccessDenied(error),
+    })
     if (this.telemetry.enabled) {
       console.info("[Telemetry] participant token", {
         storageKey: this.telemetryParticipantTokenStorageKey,
         source: this.telemetryParticipantTokenSource,
-        tokenPreview: this.maskToken(telemetryConfig.participantToken),
-        tokenLength: telemetryConfig.participantToken.length,
+        tokenPreview: this.maskToken(config.participantToken),
+        tokenLength: config.participantToken.length,
       })
     }
     if (!this.telemetry.enabled) {
       return
     }
 
-    this.telemetry.start()
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.telemetry.stop()
       void this.telemetry.flush()
     })
+  }
+
+  setAccessOverlay(title, hint) {
+    this.accessOverlay.setText(title)
+    this.accessOverlayHint.setText(hint)
+    this.accessOverlay.setVisible(true)
+    this.accessOverlayHint.setVisible(!!hint)
+  }
+
+  blockAccess(title, hint) {
+    this.accessBlocked = true
+    this.gameReady = false
+    this.isPaused = false
+    this.telemetry?.stop()
+    this.setAccessOverlay(title, hint)
+    if (this.platforms && this.player) {
+      this.drawWorld()
+    }
+  }
+
+  clearStoredParticipantToken() {
+    const storageKey = this.telemetryParticipantTokenStorageKey
+    if (storageKey) {
+      window.localStorage.removeItem(storageKey)
+    }
+  }
+
+  handleTelemetryAccessDenied(error) {
+    console.error("Telemetry access denied:", error?.message || error)
+    this.clearStoredParticipantToken()
+    this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
   }
 
   resolveTelemetryConfig() {
@@ -850,10 +925,10 @@ class EndlessClimberScene extends Phaser.Scene {
 
   async flushTelemetry() {
     if (!this.telemetry || !this.telemetry.enabled) {
-      return
+      return false
     }
 
-    await this.telemetry.flush()
+    return this.telemetry.flush()
   }
 
   recordDeathTimestamp(timestamp) {

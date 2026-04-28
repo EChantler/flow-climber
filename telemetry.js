@@ -6,11 +6,13 @@ class TelemetryManager {
     this.batchSize = options.batchSize || 12
     this.flushIntervalMs = options.flushIntervalMs || 15000
     this.sessionId = options.sessionId || null
+    this.onAccessDenied = options.onAccessDenied || null
     this.enabled = !!(this.supabase && this.participantToken)
     this.buffer = []
     this.flushTimer = null
     this.boundVisibilityHandler = null
     this.boundPageHideHandler = null
+    this.accessDenied = false
   }
 
   start() {
@@ -78,7 +80,7 @@ class TelemetryManager {
 
   async flush() {
     if (!this.enabled || this.buffer.length === 0) {
-      return
+      return true
     }
 
     const dataToSend = [...this.buffer]
@@ -91,7 +93,20 @@ class TelemetryManager {
     if (error) {
       console.error("Telemetry flush failed:", error.message)
       this.buffer = [...dataToSend, ...this.buffer]
+
+      if (!this.accessDenied && isAccessDeniedError(error)) {
+        this.accessDenied = true
+        this.enabled = false
+        this.stop()
+        if (typeof this.onAccessDenied === "function") {
+          this.onAccessDenied(error)
+        }
+      }
+
+      return false
     }
+
+    return true
   }
 }
 
@@ -107,6 +122,16 @@ function createTelemetryManager(config = {}) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
   return new TelemetryManager(supabase, participantToken, config)
+}
+
+function isAccessDeniedError(error) {
+  const message = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ").toLowerCase()
+  return (
+    error?.code === "42501"
+    || message.includes("row-level security")
+    || message.includes("violates")
+    || message.includes("permission denied")
+  )
 }
 
 globalThis.TelemetryManager = TelemetryManager
