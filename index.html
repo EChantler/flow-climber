@@ -16,6 +16,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      touch-action: none;
+      overscroll-behavior: none;
     }
 
     #game-root {
@@ -33,10 +35,111 @@
       max-height: 100vh;
       image-rendering: auto;
     }
+
+    #touch-controls {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: block;
+      padding: 16px;
+      box-sizing: border-box;
+      z-index: 5;
+    }
+
+    .touch-cluster {
+      pointer-events: none;
+      display: flex;
+      gap: 12px;
+      position: absolute;
+    }
+
+    .touch-cluster--left {
+      left: 16px;
+      bottom: 16px;
+      align-items: flex-end;
+    }
+
+    .touch-cluster--right {
+      flex-direction: column;
+      right: 16px;
+      top: 16px;
+      align-items: flex-end;
+    }
+
+    .touch-cluster--jump {
+      right: 16px;
+      bottom: 92px;
+      align-items: flex-end;
+    }
+
+    .touch-button {
+      pointer-events: auto;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(12, 18, 28, 0.72);
+      color: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      font: inherit;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .touch-button:active {
+      background: rgba(42, 54, 78, 0.9);
+      transform: translateY(1px);
+    }
+
+    .touch-button--nav {
+      width: 74px;
+      height: 74px;
+      font-size: 18px;
+    }
+
+    .touch-button--action {
+      width: 92px;
+      height: 92px;
+      font-size: 18px;
+    }
+
+    .touch-button--small {
+      width: 68px;
+      height: 44px;
+      font-size: 12px;
+      border-radius: 14px;
+      opacity: 0.92;
+    }
+
+    @media (min-width: 900px) {
+      #touch-controls {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="game-root"></div>
+  <div id="touch-controls" aria-hidden="true">
+    <div class="touch-cluster touch-cluster--left">
+      <button id="touch-left" class="touch-button touch-button--nav" type="button">Left</button>
+      <button id="touch-right" class="touch-button touch-button--nav" type="button">Right</button>
+    </div>
+    <div class="touch-cluster touch-cluster--right">
+      <button id="touch-pause" class="touch-button touch-button--small" type="button">Pause</button>
+      <button id="touch-restart" class="touch-button touch-button--small" type="button">Restart</button>
+    </div>
+    <div class="touch-cluster touch-cluster--jump">
+      <button id="touch-jump" class="touch-button touch-button--action" type="button">Jump</button>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>

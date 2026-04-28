@@ -93,6 +93,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
     this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R)
     this.setupKeyboardFallback()
+    this.setupTouchControls()
     this.configureInputStability()
 
     this.scoreText = this.add.text(14, 12, "", { fontSize: "18px", color: "#ffffff" })
@@ -151,6 +152,10 @@ class EndlessClimberScene extends Phaser.Scene {
     this.landingTractionExpiresAt = 0
     this.deathTimestamps = []
     this.unstuckAvailable = false
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.teardownTouchControls()
+    })
 
     void this.bootstrapAccessControl()
   }
@@ -1152,6 +1157,98 @@ class EndlessClimberScene extends Phaser.Scene {
         this.resetFallbackKeys()
       }
     })
+  }
+
+  setupTouchControls() {
+    const bind = (element, handlers) => {
+      if (!element) {
+        return null
+      }
+
+      const onPointerDown = (event) => {
+        event.preventDefault()
+        element.setPointerCapture?.(event.pointerId)
+        handlers.down?.(event)
+      }
+      const onPointerUp = (event) => {
+        event.preventDefault()
+        handlers.up?.(event)
+      }
+      const onPointerCancel = (event) => {
+        event.preventDefault()
+        handlers.cancel?.(event)
+      }
+
+      element.addEventListener("pointerdown", onPointerDown)
+      element.addEventListener("pointerup", onPointerUp)
+      element.addEventListener("pointercancel", onPointerCancel)
+      element.addEventListener("pointerleave", onPointerCancel)
+      element.addEventListener("contextmenu", (event) => event.preventDefault())
+
+      return {
+        element,
+        onPointerDown,
+        onPointerUp,
+        onPointerCancel,
+      }
+    }
+
+    this.touchControlBindings = [
+      bind(document.getElementById("touch-left"), {
+        down: () => {
+          this.fallbackKeyState.left = true
+          this.fallbackKeyState.right = false
+        },
+        up: () => {
+          this.fallbackKeyState.left = false
+        },
+        cancel: () => {
+          this.fallbackKeyState.left = false
+        },
+      }),
+      bind(document.getElementById("touch-right"), {
+        down: () => {
+          this.fallbackKeyState.right = true
+          this.fallbackKeyState.left = false
+        },
+        up: () => {
+          this.fallbackKeyState.right = false
+        },
+        cancel: () => {
+          this.fallbackKeyState.right = false
+        },
+      }),
+      bind(document.getElementById("touch-jump"), {
+        down: () => {
+          this.pendingActionPress.space = true
+        },
+      }),
+      bind(document.getElementById("touch-pause"), {
+        down: () => {
+          this.pendingActionPress.p = true
+        },
+      }),
+      bind(document.getElementById("touch-restart"), {
+        down: () => {
+          this.pendingActionPress.r = true
+        },
+      }),
+    ].filter(Boolean)
+  }
+
+  teardownTouchControls() {
+    if (!this.touchControlBindings) {
+      return
+    }
+
+    for (const binding of this.touchControlBindings) {
+      binding.element.removeEventListener("pointerdown", binding.onPointerDown)
+      binding.element.removeEventListener("pointerup", binding.onPointerUp)
+      binding.element.removeEventListener("pointercancel", binding.onPointerCancel)
+      binding.element.removeEventListener("pointerleave", binding.onPointerCancel)
+    }
+
+    this.touchControlBindings = []
   }
 
   updateFallbackKeyStateOnDown(code) {
