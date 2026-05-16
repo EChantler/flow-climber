@@ -76,8 +76,26 @@ const FALL_BELOW_LOWEST_PLATFORM_MARGIN = 120
 const MIN_PLATFORM_GAP_Y = Math.ceil(PLAYER_HEIGHT * 1.5)
 const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
-const GAME_VERSION = "v0.2.27"
+const GAME_VERSION = "v0.2.29"
 const WORLD_ZOOM = 0.9
+
+const BACKGROUND_HEIGHT_STOPS = [
+  { height: 0, color: 0x141a25 },
+  { height: 500, color: 0x151d28 },
+  { height: 1000, color: 0x16212c },
+  { height: 1500, color: 0x162632 },
+  { height: 2100, color: 0x152b37 },
+  { height: 2800, color: 0x15313d },
+  { height: 3600, color: 0x153748 },
+  { height: 4500, color: 0x163a53 },
+  { height: 5500, color: 0x1a3c60 },
+  { height: 6700, color: 0x1f3c69 },
+  { height: 8000, color: 0x2a3b6d },
+  { height: 9500, color: 0x373873 },
+  { height: 11200, color: 0x4a336f },
+  { height: 13000, color: 0x5d2f64 },
+  { height: 15000, color: 0x6b2f52 },
+]
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
@@ -740,7 +758,7 @@ class EndlessClimberScene extends Phaser.Scene {
 
   drawWorld() {
     this.graphics.clear()
-    this.graphics.fillStyle(0x141a25, 1)
+    this.graphics.fillStyle(this.backgroundColorForHeight(this.heightClimbed), 1)
     this.graphics.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
     for (const platform of this.platforms) {
@@ -1073,6 +1091,31 @@ class EndlessClimberScene extends Phaser.Scene {
   updateHeightClimbed() {
     const climbed = Math.max(0, Math.floor(this.runStartHeightY - this.player.y))
     this.heightClimbed = Math.max(this.heightClimbed, climbed)
+  }
+
+  backgroundColorForHeight(heightClimbed) {
+    if (BACKGROUND_HEIGHT_STOPS.length === 0) {
+      return 0x141a25
+    }
+
+    if (heightClimbed <= BACKGROUND_HEIGHT_STOPS[0].height) {
+      return BACKGROUND_HEIGHT_STOPS[0].color
+    }
+
+    for (let i = 1; i < BACKGROUND_HEIGHT_STOPS.length; i += 1) {
+      const previous = BACKGROUND_HEIGHT_STOPS[i - 1]
+      const next = BACKGROUND_HEIGHT_STOPS[i]
+      if (heightClimbed <= next.height) {
+        const range = Math.max(1, next.height - previous.height)
+        const progress = Phaser.Math.Clamp((heightClimbed - previous.height) / range, 0, 1)
+        const from = Phaser.Display.Color.IntegerToColor(previous.color)
+        const to = Phaser.Display.Color.IntegerToColor(next.color)
+        const color = Phaser.Display.Color.Interpolate.ColorWithColor(from, to, 1000, Math.round(progress * 1000))
+        return Phaser.Display.Color.GetColor(color.r, color.g, color.b)
+      }
+    }
+
+    return BACKGROUND_HEIGHT_STOPS[BACKGROUND_HEIGHT_STOPS.length - 1].color
   }
 
   updateDifficultyFromElapsedTime() {
