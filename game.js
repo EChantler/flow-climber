@@ -76,7 +76,7 @@ const FALL_BELOW_LOWEST_PLATFORM_MARGIN = 120
 const MIN_PLATFORM_GAP_Y = Math.ceil(PLAYER_HEIGHT * 1.5)
 const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
-const GAME_VERSION = "v0.2.26"
+const GAME_VERSION = "v0.2.27"
 const WORLD_ZOOM = 0.9
 
 class EndlessClimberScene extends Phaser.Scene {
@@ -97,13 +97,14 @@ class EndlessClimberScene extends Phaser.Scene {
     this.configureInputStability()
 
     this.scoreText = this.add.text(14, 12, "", { fontSize: "18px", color: "#ffffff" })
-    this.flagsText = this.add.text(14, 34, "", { fontSize: "18px", color: "#ffffff" })
-    this.deathsText = this.add.text(14, 56, "", { fontSize: "18px", color: "#ffffff" })
-    this.difficultyText = this.add.text(14, 78, "", { fontSize: "18px", color: "#ffffff" })
-    this.controlsText = this.add.text(14, 110, "Move: A/D or Left/Right", { fontSize: "16px", color: "#d6deea" })
-    this.jumpText = this.add.text(14, 130, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
-    this.pauseHintText = this.add.text(14, 150, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
-    this.restartText = this.add.text(14, 170, "R: Restart run", { fontSize: "16px", color: "#d6deea" })
+    this.heightText = this.add.text(14, 34, "", { fontSize: "18px", color: "#ffffff" })
+    this.flagsText = this.add.text(14, 56, "", { fontSize: "18px", color: "#ffffff" })
+    this.deathsText = this.add.text(14, 78, "", { fontSize: "18px", color: "#ffffff" })
+    this.difficultyText = this.add.text(14, 100, "", { fontSize: "18px", color: "#ffffff" })
+    this.controlsText = this.add.text(14, 132, "Move: A/D or Left/Right", { fontSize: "16px", color: "#d6deea" })
+    this.jumpText = this.add.text(14, 152, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
+    this.pauseHintText = this.add.text(14, 172, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
+    this.restartText = this.add.text(14, 192, "R: Restart run", { fontSize: "16px", color: "#d6deea" })
     this.versionText = this.add.text(SCREEN_WIDTH - 10, SCREEN_HEIGHT - 8, `FlowClimb ${GAME_VERSION}`, {
       fontSize: "12px",
       color: "#93a4bd",
@@ -145,6 +146,8 @@ class EndlessClimberScene extends Phaser.Scene {
     this.accessBlocked = false
     this.gameReady = false
     this.isPaused = false
+    this.heightClimbed = 0
+    this.runStartHeightY = 0
     this.jumpBufferExpiresAt = 0
     this.coyoteExpiresAt = 0
     this.runChargeStartedAt = 0
@@ -236,6 +239,8 @@ class EndlessClimberScene extends Phaser.Scene {
     this.unstuckOverlay.setVisible(false)
 
     this.cameraY = this.player.y - PLAYER_CAMERA_TARGET_SCREEN_Y
+    this.runStartHeightY = this.player.y
+    this.heightClimbed = 0
     this.flagsCollected = 0
     this.deathPenalty = 0
     this.score = 0
@@ -652,6 +657,8 @@ class EndlessClimberScene extends Phaser.Scene {
       }
     }
 
+    this.updateHeightClimbed()
+
     if (this.flagCollectGraceFrames > 0) {
       this.flagCollectGraceFrames -= 1
     }
@@ -802,6 +809,7 @@ class EndlessClimberScene extends Phaser.Scene {
     }
 
     this.scoreText.setText(`Score: ${this.score}`)
+    this.heightText.setText(`Height: ${this.heightClimbed}`)
     this.flagsText.setText(`Flags: ${this.flagsCollected}`)
     this.deathsText.setText(`Deaths: ${this.deathCount}`)
     const suddenDeathTag = this.difficultyLevel >= DIFFICULTY_MAX + 1 ? " (Sudden Death)" : ""
@@ -891,12 +899,12 @@ class EndlessClimberScene extends Phaser.Scene {
     if (existingToken) {
       this.telemetryParticipantTokenStorageKey = storageKey
       this.telemetryParticipantTokenSource = "localStorage"
-      return existingToken.trim()
+      return existingToken.trim().toLowerCase()
     }
 
     const token = window.prompt("Enter participant token")
     if (token) {
-      const trimmedToken = token.trim()
+      const trimmedToken = token.trim().toLowerCase()
       window.localStorage.setItem(storageKey, trimmedToken)
       this.telemetryParticipantTokenStorageKey = storageKey
       this.telemetryParticipantTokenSource = "prompt"
@@ -925,7 +933,10 @@ class EndlessClimberScene extends Phaser.Scene {
       return
     }
 
-    this.telemetry.log(type, value, extra)
+    this.telemetry.log(type, value, {
+      ...extra,
+      height_climbed: this.heightClimbed,
+    })
   }
 
   async flushTelemetry() {
@@ -1057,6 +1068,11 @@ class EndlessClimberScene extends Phaser.Scene {
 
   updateScore() {
     this.score = this.flagsCollected - this.deathPenalty
+  }
+
+  updateHeightClimbed() {
+    const climbed = Math.max(0, Math.floor(this.runStartHeightY - this.player.y))
+    this.heightClimbed = Math.max(this.heightClimbed, climbed)
   }
 
   updateDifficultyFromElapsedTime() {
