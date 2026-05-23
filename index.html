@@ -135,6 +135,7 @@
     <div class="touch-cluster touch-cluster--right">
       <button id="touch-pause" class="touch-button touch-button--small" type="button">Pause</button>
       <button id="touch-restart" class="touch-button touch-button--small" type="button">Restart</button>
+      <button id="touch-menu" class="touch-button touch-button--small" type="button">Menu</button>
     </div>
     <div class="touch-cluster touch-cluster--jump">
       <button id="touch-jump" class="touch-button touch-button--action" type="button">Jump</button>
@@ -148,11 +149,11 @@
       supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3RrYnVncGN5cGl0eHV2dml0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzA1MDUsImV4cCI6MjA5MjgwNjUwNX0._bWUydcLpHEOuUGuXccaA-XoxHKFY-anYcGPCGadTcA",
       tableName: "telemetry",
       participantTokenStorageKey: "flowclimb_participant_token",
-      batchSize: 12,
-      flushIntervalMs: 15000,
+      batchSize: 1,
+      flushIntervalMs: 10000,
     }
   </script>
-  <script src="./telemetry.js?v=0.2.29"></script>
-  <script src="./game.js?v=0.2.29"></script>
+  <script src="./telemetry.js?v=0.2.35"></script>
+  <script src="./game.js?v=0.2.35"></script>
 </body>
 </html>

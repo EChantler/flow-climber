@@ -76,7 +76,10 @@ const FALL_BELOW_LOWEST_PLATFORM_MARGIN = 120
 const MIN_PLATFORM_GAP_Y = Math.ceil(PLAYER_HEIGHT * 1.5)
 const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
-const GAME_VERSION = "v0.2.29"
+const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
+const FLOW_DIFFICULTY_STEP = 1
+const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
+const GAME_VERSION = "v0.2.35"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -119,10 +122,12 @@ class EndlessClimberScene extends Phaser.Scene {
     this.flagsText = this.add.text(14, 56, "", { fontSize: "18px", color: "#ffffff" })
     this.deathsText = this.add.text(14, 78, "", { fontSize: "18px", color: "#ffffff" })
     this.difficultyText = this.add.text(14, 100, "", { fontSize: "18px", color: "#ffffff" })
-    this.controlsText = this.add.text(14, 132, "Move: A/D or Left/Right", { fontSize: "16px", color: "#d6deea" })
-    this.jumpText = this.add.text(14, 152, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
-    this.pauseHintText = this.add.text(14, 172, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
-    this.restartText = this.add.text(14, 192, "R: Restart run", { fontSize: "16px", color: "#d6deea" })
+    this.modeText = this.add.text(14, 122, "", { fontSize: "18px", color: "#ffffff" })
+    this.modelText = this.add.text(14, 144, "", { fontSize: "16px", color: "#d6deea" })
+    this.controlsText = this.add.text(14, 176, "Move: A/D or Left/Right", { fontSize: "16px", color: "#d6deea" })
+    this.jumpText = this.add.text(14, 196, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
+    this.pauseHintText = this.add.text(14, 216, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
+    this.restartText = this.add.text(14, 236, "R: Restart run   Q: Quit to menu", { fontSize: "16px", color: "#d6deea" })
     this.versionText = this.add.text(SCREEN_WIDTH - 10, SCREEN_HEIGHT - 8, `FlowClimb ${GAME_VERSION}`, {
       fontSize: "12px",
       color: "#93a4bd",
@@ -152,6 +157,24 @@ class EndlessClimberScene extends Phaser.Scene {
       padding: { x: 12, y: 8 },
     }).setOrigin(0.5).setVisible(false)
 
+    this.hudTexts = [
+      this.scoreText,
+      this.heightText,
+      this.flagsText,
+      this.deathsText,
+      this.difficultyText,
+      this.modeText,
+      this.modelText,
+      this.controlsText,
+      this.jumpText,
+      this.pauseHintText,
+      this.restartText,
+    ]
+    this.hudTexts.forEach((text) => text.setVisible(false))
+    this.createMenuScreen()
+    this.setMenuVisible(false)
+    this.setTouchControlsVisible(false)
+
     this.playerName = "player"
     this.pendingTelemetry = []
     this.telemetry = null
@@ -173,12 +196,128 @@ class EndlessClimberScene extends Phaser.Scene {
     this.landingTractionExpiresAt = 0
     this.deathTimestamps = []
     this.unstuckAvailable = false
+    this.screenState = "loading"
+    this.gameMode = null
+    this.selectedFlowModel = null
+    this.lastFlowModelUpdateTimestamp = 0
+    this.lastTelemetryWindowTimestamp = 0
+    this.lastChallengeLabel = "appropriately_challenged"
+    this.lastFlagsForModel = 0
+    this.lastDeathsForModel = 0
+    this.lastHeightForModel = 0
+    this.windowTelemetry = null
+    this.telemetryWindowIndex = 0
+    this.jumpStartedPlatform = null
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.teardownTouchControls()
     })
 
     void this.bootstrapAccessControl()
+  }
+
+  createMenuScreen() {
+    const title = this.add.text(SCREEN_WIDTH / 2, 118, "FlowClimb", {
+      fontSize: "62px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    }).setOrigin(0.5)
+
+    const notice = this.add.text(
+      SCREEN_WIDTH / 2,
+      210,
+      "Data collection notice\nThis study build records gameplay telemetry (mode, score, flags, deaths, height, difficulty and model decisions) using your participant token. Do not enter personal information during play.",
+      {
+        fontSize: "18px",
+        color: "#d6deea",
+        align: "center",
+        wordWrap: { width: 590 },
+        lineSpacing: 8,
+      },
+    ).setOrigin(0.5)
+
+    const makeButton = (y, label, mode) => {
+      const button = this.add.text(SCREEN_WIDTH / 2, y, label, {
+        fontSize: "28px",
+        color: "#ffffff",
+        backgroundColor: "rgba(55, 83, 126, 0.82)",
+        padding: { x: 28, y: 14 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true })
+      button.on("pointerdown", () => this.startRun(mode))
+      button.on("pointerover", () => button.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
+      button.on("pointerout", () => button.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
+      return button
+    }
+
+    const trainButton = makeButton(390, "Train mode", "train")
+    const flowButton = makeButton(470, "Flow mode", "flow")
+    this.menuButtons = [trainButton, flowButton]
+    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via a randomly selected model.", {
+      fontSize: "16px",
+      color: "#93a4bd",
+      align: "center",
+      wordWrap: { width: 560 },
+    }).setOrigin(0.5)
+
+    this.menuTexts = [title, notice, trainButton, flowButton, hint]
+  }
+
+  setMenuVisible(visible) {
+    if (this.menuTexts) {
+      this.menuTexts.forEach((text) => text.setVisible(visible))
+    }
+    if (this.menuButtons) {
+      this.menuButtons.forEach((button) => {
+        if (visible) {
+          button.setInteractive({ useHandCursor: true })
+        } else {
+          button.disableInteractive()
+        }
+      })
+    }
+  }
+
+  setHudVisible(visible) {
+    this.hudTexts.forEach((text) => text.setVisible(visible))
+  }
+
+  setTouchControlsVisible(visible) {
+    const controls = document.getElementById("touch-controls")
+    if (controls) {
+      controls.style.visibility = visible ? "visible" : "hidden"
+    }
+  }
+
+  showMenu() {
+    this.screenState = "menu"
+    this.gameMode = null
+    this.selectedFlowModel = null
+    this.isPaused = false
+    this.resetFallbackKeys()
+    this.setHudVisible(false)
+    this.setTouchControlsVisible(false)
+    this.pauseOverlay.setVisible(false)
+    this.pauseOverlayHint.setVisible(false)
+    this.unstuckOverlay.setVisible(false)
+    this.setMenuVisible(true)
+    this.drawMenuBackground()
+  }
+
+  drawMenuBackground() {
+    this.graphics.clear()
+    this.graphics.fillStyle(0x141a25, 1)
+    this.graphics.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+  }
+
+  startRun(mode) {
+    this.gameMode = mode
+    this.selectedFlowModel = mode === "flow" ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
+    this.lastChallengeLabel = "appropriately_challenged"
+    this.lastFlowModelUpdateTimestamp = Date.now()
+    this.lastFlagsForModel = 0
+    this.lastDeathsForModel = 0
+    this.lastHeightForModel = 0
+    this.resetWorld()
   }
 
   async bootstrapAccessControl() {
@@ -192,9 +331,7 @@ class EndlessClimberScene extends Phaser.Scene {
         return
       }
 
-      this.logTelemetry("session_start", 0, { version: GAME_VERSION })
-
-      const accepted = await this.flushTelemetry()
+      const accepted = await this.validateParticipantAccess(telemetryConfig.participantToken)
       if (!accepted || this.accessBlocked) {
         if (!this.accessBlocked) {
           this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
@@ -204,10 +341,10 @@ class EndlessClimberScene extends Phaser.Scene {
 
       this.initializeSpawnWorker()
       this.telemetry.start()
-      this.resetWorld()
       this.gameReady = true
       this.accessOverlay.setVisible(false)
       this.accessOverlayHint.setVisible(false)
+      this.showMenu()
     } catch (error) {
       console.error("Access validation failed:", error)
       this.blockAccess("Could not validate access token", "Refresh and try again.")
@@ -215,6 +352,11 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   resetWorld() {
+    this.screenState = "playing"
+    this.setMenuVisible(false)
+    this.setHudVisible(true)
+    this.modelText.setVisible(this.gameMode === "flow")
+    this.setTouchControlsVisible(true)
     this.resetFallbackKeys()
     this.spawnPrefetch = null
     const startParams = this.currentSpawnParams(DIFFICULTY_MIN)
@@ -233,6 +375,7 @@ class EndlessClimberScene extends Phaser.Scene {
 
     const nextPlatform = this.getNextPlatform(startPlatform, DIFFICULTY_MIN)
     this.platforms = [this.decoratePlatform(startPlatform, DIFFICULTY_MIN, false), nextPlatform]
+    this.platforms[0].reached = true
     this.objectivePlatformIndex = INITIAL_OBJECTIVE_PLATFORM_INDEX
     this.ensurePlatformBuffer(DIFFICULTY_MIN)
     this.syncCollectibleFlags()
@@ -270,14 +413,42 @@ class EndlessClimberScene extends Phaser.Scene {
     this.deathCount = 0
     this.resetCount = 0
     this.runStartTimestamp = Date.now()
+    this.lastFlowModelUpdateTimestamp = this.runStartTimestamp
+    this.lastTelemetryWindowTimestamp = this.runStartTimestamp
+    this.lastFlagsForModel = 0
+    this.lastDeathsForModel = 0
+    this.lastHeightForModel = 0
+    this.telemetryWindowIndex = 0
+    this.resetWindowTelemetryCounters(this.runStartTimestamp, 0)
     this.maxDifficultyAchieved = DIFFICULTY_MIN
     this.groundPlatform = this.platforms[0]
+    this.jumpStartedPlatform = null
     this.isPaused = false
     this.pauseOverlay.setVisible(false)
     this.pauseOverlayHint.setVisible(false)
 
     this.queueSpawnPrefetch(this.platforms[this.platforms.length - 1], this.difficultyLevel)
     this.drawWorld()
+  }
+
+  incrementWindowCounter(name, amount = 1) {
+    if (this.windowTelemetry && Object.prototype.hasOwnProperty.call(this.windowTelemetry, name)) {
+      this.windowTelemetry[name] += amount
+    }
+  }
+
+  resetWindowTelemetryCounters(windowStartTimestamp = Date.now(), windowStartingHeight = this.heightClimbed || 0) {
+    this.windowTelemetry = {
+      windowStartTimestamp,
+      windowStartingHeight,
+      jumpLandingsOnNewPlatforms: 0,
+      newPlatformsReached: 0,
+      deaths: 0,
+      horizontalMovement: 0,
+      leftKeyPresses: 0,
+      rightKeyPresses: 0,
+      jumpKeyPresses: 0,
+    }
   }
 
   initializeSpawnWorker() {
@@ -463,14 +634,12 @@ class EndlessClimberScene extends Phaser.Scene {
     targetPlatform.flagVisible = false
     this.flagsCollected += 1
     this.lastFlagTimestamp = now
+    this.deathTimestamps = []
+    this.unstuckAvailable = false
+    this.unstuckOverlay.setVisible(false)
     this.updateScore()
     this.flashHudText(this.flagsText)
     this.showScoreIndicator("+1", "#55f28f")
-    this.logTelemetry("flag_collect", 1, {
-      score: this.score,
-      objective_index: this.objectivePlatformIndex,
-      difficulty: this.difficultyLevel,
-    })
 
     this.objectivePlatformIndex += 1
     this.retireResolvedPlatforms()
@@ -489,12 +658,6 @@ class EndlessClimberScene extends Phaser.Scene {
     this.lastFlagTimestamp = now
     this.updateScore()
     this.showScoreIndicator(`-${MISSED_FLAG_PENALTY * missedCount}`, "#ffb84d")
-    this.logTelemetry("flag_miss", -(MISSED_FLAG_PENALTY * missedCount), {
-      missed_count: missedCount,
-      landed_platform_index: landedPlatformIndex,
-      score: this.score,
-      difficulty: this.difficultyLevel,
-    })
 
     this.objectivePlatformIndex = Math.min(landedPlatformIndex + 1, this.platforms.length - 1)
     this.retireResolvedPlatforms()
@@ -505,6 +668,16 @@ class EndlessClimberScene extends Phaser.Scene {
 
   update(_, delta) {
     if (!this.gameReady) {
+      return
+    }
+
+    if (this.screenState === "menu") {
+      this.drawMenuBackground()
+      return
+    }
+
+    if (this.consumeActionPress("q")) {
+      this.showMenu()
       return
     }
 
@@ -522,12 +695,7 @@ class EndlessClimberScene extends Phaser.Scene {
     }
 
     if (this.consumeActionPress("r")) {
-      this.logTelemetry("run_reset", 0, {
-        score: this.score,
-        flags_collected: this.flagsCollected,
-        deaths: this.deathCount,
-      })
-      this.resetWorld()
+      this.startRun(this.gameMode || "train")
       return
     }
 
@@ -577,8 +745,12 @@ class EndlessClimberScene extends Phaser.Scene {
       this.player.velocityX = 0
     }
 
+    const xBeforeMove = this.player.x
     this.player.x += this.player.velocityX * frameScale
     this.player.x = Phaser.Math.Clamp(this.player.x, 0, SCREEN_WIDTH - this.player.width)
+    if (this.windowTelemetry) {
+      this.windowTelemetry.horizontalMovement += Math.abs(this.player.x - xBeforeMove)
+    }
     if (this.player.x <= 0 || this.player.x >= SCREEN_WIDTH - this.player.width) {
       this.player.velocityX = 0
     }
@@ -595,6 +767,7 @@ class EndlessClimberScene extends Phaser.Scene {
     if (this.jumpBufferExpiresAt > 0 && now <= this.jumpBufferExpiresAt && canJump) {
       this.player.velocityY = JUMP_VELOCITY
       this.player.onGround = false
+      this.jumpStartedPlatform = this.groundPlatform
       this.jumpBufferExpiresAt = 0
       this.coyoteExpiresAt = 0
     }
@@ -643,6 +816,14 @@ class EndlessClimberScene extends Phaser.Scene {
         if (!wasOnGround) {
           this.player.velocityX = direction !== 0 ? targetSpeed : 0
         }
+        if (!platform.reached) {
+          platform.reached = true
+          this.incrementWindowCounter("newPlatformsReached")
+        }
+        if (this.jumpStartedPlatform && this.jumpStartedPlatform !== platform) {
+          this.incrementWindowCounter("jumpLandingsOnNewPlatforms")
+        }
+        this.jumpStartedPlatform = null
         this.lastSafePlatform = platform
         this.groundPlatform = platform
         landedPlatformIndex = this.platforms.indexOf(platform)
@@ -701,6 +882,7 @@ class EndlessClimberScene extends Phaser.Scene {
       this.respawnGraceFrames -= 1
     } else if (this.player.y > lowestPlatform.y + FALL_BELOW_LOWEST_PLATFORM_MARGIN) {
       this.deathCount += 1
+      this.incrementWindowCounter("deaths")
       this.recordDeathTimestamp(now)
       this.flashHudText(this.deathsText)
       const diedWhileOnPlatform = this.player.onGround
@@ -711,11 +893,6 @@ class EndlessClimberScene extends Phaser.Scene {
         this.flashHudText(this.restartText)
       }
       this.updateScore()
-      this.logTelemetry("death", -deathPenalty, {
-        died_while_on_platform: diedWhileOnPlatform,
-        score: this.score,
-        difficulty: this.difficultyLevel,
-      })
 
       let respawnPlatform = this.lastSafePlatform
       if (!this.platforms.includes(respawnPlatform)) {
@@ -732,6 +909,7 @@ class EndlessClimberScene extends Phaser.Scene {
       }
       this.player.velocityY = 0
       this.player.velocityX = 0
+      this.jumpStartedPlatform = null
       this.respawnGraceFrames = RESPAWN_GRACE_FRAMES
       this.flagCollectGraceFrames = FLAG_COLLECT_GRACE_FRAMES
       this.groundPlatform = respawnPlatform
@@ -830,8 +1008,10 @@ class EndlessClimberScene extends Phaser.Scene {
     this.heightText.setText(`Height: ${this.heightClimbed}`)
     this.flagsText.setText(`Flags: ${this.flagsCollected}`)
     this.deathsText.setText(`Deaths: ${this.deathCount}`)
-    const suddenDeathTag = this.difficultyLevel >= DIFFICULTY_MAX + 1 ? " (Sudden Death)" : ""
-    this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}${suddenDeathTag}`)
+    this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}`)
+    this.modeText.setText(`Mode: ${this.gameMode === "flow" ? "Flow" : "Train"}`)
+    this.modelText.setVisible(this.gameMode === "flow")
+    this.modelText.setText(`Flow model: ${this.selectedFlowModel} (${this.lastChallengeLabel})`)
     this.pauseOverlay.setVisible(this.isPaused)
     this.pauseOverlayHint.setVisible(this.isPaused)
     this.unstuckOverlay.setVisible(this.unstuckAvailable)
@@ -951,10 +1131,27 @@ class EndlessClimberScene extends Phaser.Scene {
       return
     }
 
+    if (type !== "telemetry_window") {
+      return
+    }
+
     this.telemetry.log(type, value, {
       ...extra,
       height_climbed: this.heightClimbed,
     })
+  }
+
+  async validateParticipantAccess(participantToken) {
+    if (!this.telemetry || !this.telemetry.enabled || !this.telemetry.supabase) {
+      return false
+    }
+
+    const { data, error } = await this.telemetry.supabase.rpc("is_valid_participant_token", { token: participantToken })
+    if (error) {
+      console.error("Access validation RPC failed:", error.message)
+      return false
+    }
+    return data === true
   }
 
   async flushTelemetry() {
@@ -992,6 +1189,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.player.velocityX = 0
     this.player.velocityY = 0
     this.player.onGround = true
+    this.jumpStartedPlatform = null
     this.lastSafePlatform = targetPlatform
     this.groundPlatform = targetPlatform
     this.cameraY = targetPlatform.y - PLAYER_CAMERA_TARGET_SCREEN_Y
@@ -1005,11 +1203,6 @@ class EndlessClimberScene extends Phaser.Scene {
     this.deathTimestamps = []
     this.unstuckAvailable = false
     this.unstuckOverlay.setVisible(false)
-    this.logTelemetry("unstuck", 0, {
-      score: this.score,
-      flags_collected: this.flagsCollected,
-      deaths: this.deathCount,
-    })
     this.showScoreIndicator("UNSTUCK", "#ffe08a")
   }
 
@@ -1119,10 +1312,174 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   updateDifficultyFromElapsedTime() {
-    const elapsedMs = Date.now() - this.runStartTimestamp
-    const timedDifficulty = DIFFICULTY_MIN + Math.floor(elapsedMs / DIFFICULTY_UPDATE_INTERVAL_MS)
-    this.difficultyLevel = Math.max(DIFFICULTY_MIN, timedDifficulty)
-    this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    const now = Date.now()
+    if (this.gameMode !== "flow") {
+      const elapsedMs = now - this.runStartTimestamp
+      const timedDifficulty = DIFFICULTY_MIN + Math.floor(elapsedMs / DIFFICULTY_UPDATE_INTERVAL_MS)
+      this.difficultyLevel = Phaser.Math.Clamp(timedDifficulty, DIFFICULTY_MIN, DIFFICULTY_MAX)
+      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    }
+
+    const telemetryElapsedMs = now - this.lastTelemetryWindowTimestamp
+    if (telemetryElapsedMs < DIFFICULTY_UPDATE_INTERVAL_MS) {
+      return
+    }
+
+    if (telemetryElapsedMs > DIFFICULTY_UPDATE_INTERVAL_MS * 2) {
+      this.lastTelemetryWindowTimestamp = now
+      this.resetWindowTelemetryCounters(now, this.heightClimbed)
+      return
+    }
+
+    const windowEndTimestamp = this.lastTelemetryWindowTimestamp + DIFFICULTY_UPDATE_INTERVAL_MS
+    const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)
+    const previousDifficulty = this.difficultyLevel
+    let predictedLabel = null
+
+    if (this.gameMode === "flow") {
+      predictedLabel = this.predictChallengeLabel(latestTelemetry)
+      if (predictedLabel === "under_challenged") {
+        this.difficultyLevel = Math.min(DIFFICULTY_MAX, this.difficultyLevel + FLOW_DIFFICULTY_STEP)
+      } else if (predictedLabel === "over_challenged") {
+        this.difficultyLevel = Math.max(DIFFICULTY_MIN, this.difficultyLevel - FLOW_DIFFICULTY_STEP)
+      }
+      this.lastChallengeLabel = predictedLabel
+      this.lastFlowModelUpdateTimestamp = windowEndTimestamp
+      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    }
+
+    this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
+    this.lastTelemetryWindowTimestamp = windowEndTimestamp
+    this.lastFlagsForModel = this.flagsCollected
+    this.lastDeathsForModel = this.deathCount
+    this.lastHeightForModel = this.heightClimbed
+    this.telemetryWindowIndex += 1
+    this.resetWindowTelemetryCounters(windowEndTimestamp, this.heightClimbed)
+  }
+
+  logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, now) {
+    this.logTelemetry("telemetry_window", this.score, this.buildTelemetryWindowPayload(
+      latestTelemetry,
+      previousDifficulty,
+      predictedLabel,
+      now,
+    ))
+  }
+
+  buildTelemetryWindowPayload(latestTelemetry, previousDifficulty, predictedLabel, now) {
+    const spawnParams = this.currentSpawnParams(this.difficultyLevel)
+    return {
+      schema_version: 1,
+      window_index: this.telemetryWindowIndex,
+      window_started_at: new Date(this.windowTelemetry.windowStartTimestamp).toISOString(),
+      window_ended_at: new Date(now).toISOString(),
+      window_duration_ms: now - this.windowTelemetry.windowStartTimestamp,
+      game_mode: this.gameModeLabel(),
+      vertical_position_y: Math.round(this.player.y),
+      height_climbed: this.heightClimbed,
+      window_starting_height: this.windowTelemetry.windowStartingHeight,
+      score: this.score,
+      difficulty: this.difficultyLevel,
+      previous_difficulty: previousDifficulty,
+      challenge_label: predictedLabel,
+      jumps_landed_on_new_platforms: this.windowTelemetry.jumpLandingsOnNewPlatforms,
+      new_platforms_reached: this.windowTelemetry.newPlatformsReached,
+      deaths: this.windowTelemetry.deaths,
+      total_horizontal_movement_px: Math.round(this.windowTelemetry.horizontalMovement),
+      left_key_presses: this.windowTelemetry.leftKeyPresses,
+      right_key_presses: this.windowTelemetry.rightKeyPresses,
+      jump_key_presses: this.windowTelemetry.jumpKeyPresses,
+      platform_width_min_px: spawnParams.minWidth,
+      platform_width_max_px: spawnParams.maxWidth,
+      platform_width_avg_px: Math.round((spawnParams.minWidth + spawnParams.maxWidth) / 2),
+      platform_height_min_px: spawnParams.minHeight,
+      platform_height_max_px: spawnParams.maxHeight,
+      platform_height_avg_px: Math.round((spawnParams.minHeight + spawnParams.maxHeight) / 2),
+      platform_gap_y_min_px: spawnParams.minGapY,
+      platform_gap_y_max_px: spawnParams.maxGapY,
+      platform_gap_y_avg_px: Math.round((spawnParams.minGapY + spawnParams.maxGapY) / 2),
+      platform_x_shift_min_px: spawnParams.minXShift,
+      platform_x_shift_max_px: spawnParams.maxXShift,
+      platform_speed_px_per_frame: Number(this.movingPlatformSpeedForDifficulty(this.difficultyLevel).toFixed(3)),
+      flags_collected_total: this.flagsCollected,
+      deaths_total: this.deathCount,
+      seconds_since_flag: Number(latestTelemetry.secondsSinceFlag.toFixed(3)),
+    }
+  }
+
+  gameModeLabel() {
+    if (this.gameMode !== "flow") {
+      return "train"
+    }
+    return this.selectedFlowModel === "edge_logistic_regression" ? "flow-ML" : "flow-heuristic"
+  }
+
+  getLatestTelemetryWindow(now) {
+    return this.challengeFeatures(now)
+  }
+
+  challengeFeatures(now) {
+    const elapsedSeconds = Math.max(1, (now - this.runStartTimestamp) / 1000)
+    const intervalSeconds = DIFFICULTY_UPDATE_INTERVAL_MS / 1000
+    const flagsDelta = this.flagsCollected - this.lastFlagsForModel
+    const deathsDelta = this.windowTelemetry.deaths
+    const heightDelta = Math.max(0, this.heightClimbed - this.windowTelemetry.windowStartingHeight)
+    return {
+      elapsedSeconds,
+      intervalSeconds,
+      flagsDelta,
+      deathsDelta,
+      heightDelta,
+      heightPerMinute: heightDelta / intervalSeconds * 60,
+      flagsPerMinute: this.flagsCollected / elapsedSeconds * 60,
+      intervalFlagsPerMinute: flagsDelta / intervalSeconds * 60,
+      deathsPerMinute: this.deathCount / elapsedSeconds * 60,
+      intervalDeathsPerMinute: deathsDelta / intervalSeconds * 60,
+      secondsSinceFlag: (now - this.lastFlagTimestamp) / 1000,
+      difficulty: this.difficultyLevel,
+    }
+  }
+
+  predictChallengeLabel(features) {
+    if (this.selectedFlowModel === "edge_logistic_regression") {
+      return this.predictLogisticRegressionChallengeLabel(features)
+    }
+    return this.predictHeuristicChallengeLabel(features)
+  }
+
+  predictHeuristicChallengeLabel(features) {
+    const lowUpwardProgress = features.heightDelta < 80
+    const noObjectiveProgress = features.flagsDelta === 0
+
+    if (features.deathsDelta >= 2 || (features.deathsDelta >= 1 && lowUpwardProgress) || (noObjectiveProgress && features.heightDelta < 40)) {
+      return "over_challenged"
+    }
+    if (features.flagsDelta >= 2 && features.deathsDelta === 0 && features.heightDelta >= 140) {
+      return "under_challenged"
+    }
+    return "appropriately_challenged"
+  }
+
+  predictLogisticRegressionChallengeLabel(features) {
+    const x = {
+      bias: 1,
+      flagsDelta: features.flagsDelta,
+      deathsDelta: features.deathsDelta,
+      intervalFlagsPerMinute: features.intervalFlagsPerMinute,
+      intervalDeathsPerMinute: features.intervalDeathsPerMinute,
+      secondsSinceFlag: features.secondsSinceFlag / 30,
+      difficulty: features.difficulty / DIFFICULTY_MAX,
+    }
+    const scores = {
+      under_challenged:
+        -1.1 + (1.35 * x.flagsDelta) - (1.7 * x.deathsDelta) + (0.18 * x.intervalFlagsPerMinute) - (0.7 * x.intervalDeathsPerMinute) - (0.8 * x.secondsSinceFlag) - (0.2 * x.difficulty),
+      over_challenged:
+        -1.0 - (0.7 * x.flagsDelta) + (1.6 * x.deathsDelta) - (0.12 * x.intervalFlagsPerMinute) + (0.9 * x.intervalDeathsPerMinute) + (1.25 * x.secondsSinceFlag) + (0.15 * x.difficulty),
+      appropriately_challenged:
+        0.4 - (0.15 * Math.abs(x.flagsDelta - 1)) - (0.6 * x.deathsDelta) - (0.25 * Math.max(0, x.secondsSinceFlag - 0.75)),
+    }
+
+    return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
   }
 
   showScoreIndicator(text, color) {
@@ -1176,6 +1533,7 @@ class EndlessClimberScene extends Phaser.Scene {
       r: false,
       u: false,
       p: false,
+      q: false,
     }
 
     const trackedCodes = new Set([
@@ -1187,6 +1545,7 @@ class EndlessClimberScene extends Phaser.Scene {
       "KeyR",
       "KeyU",
       "KeyP",
+      "KeyQ",
     ])
     this.windowKeyDownHandler = (event) => {
       if (!trackedCodes.has(event.code)) {
@@ -1255,6 +1614,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.touchControlBindings = [
       bind(document.getElementById("touch-left"), {
         down: () => {
+          this.incrementWindowCounter("leftKeyPresses")
           this.fallbackKeyState.left = true
           this.fallbackKeyState.right = false
         },
@@ -1267,6 +1627,7 @@ class EndlessClimberScene extends Phaser.Scene {
       }),
       bind(document.getElementById("touch-right"), {
         down: () => {
+          this.incrementWindowCounter("rightKeyPresses")
           this.fallbackKeyState.right = true
           this.fallbackKeyState.left = false
         },
@@ -1279,6 +1640,7 @@ class EndlessClimberScene extends Phaser.Scene {
       }),
       bind(document.getElementById("touch-jump"), {
         down: () => {
+          this.incrementWindowCounter("jumpKeyPresses")
           this.pendingActionPress.space = true
         },
       }),
@@ -1290,6 +1652,11 @@ class EndlessClimberScene extends Phaser.Scene {
       bind(document.getElementById("touch-restart"), {
         down: () => {
           this.pendingActionPress.r = true
+        },
+      }),
+      bind(document.getElementById("touch-menu"), {
+        down: () => {
+          this.pendingActionPress.q = true
         },
       }),
     ].filter(Boolean)
@@ -1312,16 +1679,19 @@ class EndlessClimberScene extends Phaser.Scene {
 
   updateFallbackKeyStateOnDown(code) {
     if (code === "ArrowLeft" || code === "KeyA") {
+      this.incrementWindowCounter("leftKeyPresses")
       this.fallbackKeyState.left = true
       this.fallbackKeyState.right = false
       return
     }
     if (code === "ArrowRight" || code === "KeyD") {
+      this.incrementWindowCounter("rightKeyPresses")
       this.fallbackKeyState.right = true
       this.fallbackKeyState.left = false
       return
     }
     if (code === "Space") {
+      this.incrementWindowCounter("jumpKeyPresses")
       this.pendingActionPress.space = true
       return
     }
@@ -1335,6 +1705,10 @@ class EndlessClimberScene extends Phaser.Scene {
     }
     if (code === "KeyP") {
       this.pendingActionPress.p = true
+      return
+    }
+    if (code === "KeyQ") {
+      this.pendingActionPress.q = true
     }
   }
 
@@ -1355,6 +1729,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.pendingActionPress.r = false
     this.pendingActionPress.u = false
     this.pendingActionPress.p = false
+    this.pendingActionPress.q = false
   }
 
   isMoveLeftPressed() {
@@ -1384,6 +1759,7 @@ class EndlessClimberScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.R,
       Phaser.Input.Keyboard.KeyCodes.U,
       Phaser.Input.Keyboard.KeyCodes.P,
+      Phaser.Input.Keyboard.KeyCodes.Q,
     ])
 
     const canvas = this.game.canvas
