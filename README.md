@@ -18,9 +18,10 @@ This repo includes a GitHub Actions workflow at `.github/workflows/deploy-to-git
 ### What it deploys
 
 - `index.html`
-- `game.js`
-- `telemetry.js`
-- `spawn-worker.js`
+- `src/game.js`
+- `src/telemetry.js`
+- `src/spawn-worker.js`
+- supporting scripts in `src/`
 
 ### Public URL
 

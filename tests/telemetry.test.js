@@ -23,7 +23,7 @@ function loadTelemetry() {
     },
   }
   context.globalThis = context
-  vm.runInNewContext(fs.readFileSync('telemetry.js', 'utf8'), context, { filename: 'telemetry.js' })
+  vm.runInNewContext(fs.readFileSync('src/telemetry.js', 'utf8'), context, { filename: 'src/telemetry.js' })
   return context
 }
 
@@ -50,7 +50,8 @@ test('TelemetryManager buffers events with participant token and session metadat
   })
 
   telemetry.log('telemetry_window', 42, {
-    data_schema_version: 5,
+    data_schema_version: 6,
+    deployment_context: 'local',
     device_type: 'mobile',
     game_mode: 'flow-heuristic',
     window_index: 7,
@@ -72,7 +73,8 @@ test('TelemetryManager buffers events with participant token and session metadat
   assert.equal(inserted[0].event_type, 'telemetry_window')
   assert.equal(inserted[0].metric_value, 42)
   assert.equal(inserted[0].game_version, 'v0.9.0')
-  assert.equal(inserted[0].data_schema_version, 5)
+  assert.equal(inserted[0].data_schema_version, 6)
+  assert.equal(inserted[0].deployment_context, 'local')
   assert.equal(inserted[0].device_type, 'mobile')
   assert.equal(inserted[0].session_id, 'session_123')
   assert.equal(inserted[0].game_mode, 'flow-heuristic')
@@ -86,6 +88,7 @@ test('TelemetryManager buffers events with participant token and session metadat
   assert.equal(inserted[0].metadata.total_horizontal_movement_px, 99)
   assert.equal(inserted[0].metadata.session_id, undefined)
   assert.equal(inserted[0].metadata.data_schema_version, undefined)
+  assert.equal(inserted[0].metadata.deployment_context, undefined)
   assert.equal(inserted[0].metadata.device_type, undefined)
   assert.equal(inserted[0].metadata.difficulty, undefined)
   assert.equal(inserted[0].metadata.score, undefined)

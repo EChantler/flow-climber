@@ -31,7 +31,8 @@ jobs:
           set -euo pipefail
           rm -rf site
           mkdir site
-          cp index.html game.js telemetry.js spawn-worker.js site/
+          cp index.html site/
+          cp -R src site/src
           touch site/.nojekyll
 
       - name: Configure Pages
