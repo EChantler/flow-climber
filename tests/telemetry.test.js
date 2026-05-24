@@ -23,7 +23,7 @@ function loadTelemetry() {
     },
   }
   context.globalThis = context
-  vm.runInNewContext(fs.readFileSync('telemetry.js', 'utf8'), context, { filename: 'telemetry.js' })
+  vm.runInNewContext(fs.readFileSync('src/telemetry.js', 'utf8'), context, { filename: 'src/telemetry.js' })
   return context
 }
 

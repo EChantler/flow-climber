@@ -3,11 +3,14 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const { execFileSync } = require('node:child_process')
 
-const gameSource = () => fs.readFileSync('game.js', 'utf8')
+const gameSource = () => fs.readFileSync('src/game.js', 'utf8')
+const telemetryWindowSource = () => fs.readFileSync('src/telemetry-window.js', 'utf8')
+const challengeModelsSource = () => fs.readFileSync('src/challenge-models.js', 'utf8')
+const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['game.js', 'telemetry.js', 'spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/challenge-models.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -19,14 +22,15 @@ test('game version matches index cache-busting query params and package version'
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  assert.match(index, new RegExp(`telemetry\\.js\\?v=${cacheVersion}`))
-  assert.match(index, new RegExp(`game\\.js\\?v=${cacheVersion}`))
+  for (const script of ['flow-constants.js', 'challenge-models.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
+    assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
+  }
   assert.equal(packageJson.version, cacheVersion)
 })
 
 test('repeated telemetry values are configured as top-level columns', () => {
   const game = gameSource()
-  const telemetry = fs.readFileSync('telemetry.js', 'utf8')
+  const telemetry = fs.readFileSync('src/telemetry.js', 'utf8')
   assert.match(game, /gameVersion: GAME_VERSION/)
   for (const column of [
     'game_version',
@@ -49,7 +53,8 @@ test('repeated telemetry values are configured as top-level columns', () => {
 test('data schema version is tracked as a top-level telemetry column', () => {
   const game = gameSource()
   assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 5/)
-  assert.match(game, /data_schema_version: TELEMETRY_SCHEMA_VERSION/)
+  assert.match(game, /telemetrySchemaVersion: TELEMETRY_SCHEMA_VERSION/)
+  assert.match(telemetryWindowSource(), /data_schema_version: input\.telemetrySchemaVersion/)
   assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
 })
 
@@ -59,14 +64,16 @@ test('only 10-second telemetry window events are logged from gameplay', () => {
   assert.deepEqual(eventTypes, ['telemetry_window'])
   assert.match(game, /const DIFFICULTY_UPDATE_INTERVAL_MS = 10000/)
   assert.match(game, /windowEndTimestamp = this\.lastTelemetryWindowTimestamp \+ DIFFICULTY_UPDATE_INTERVAL_MS/)
-  assert.match(game, /window_duration_ms: now - this\.windowTelemetry\.windowStartTimestamp/)
+  assert.match(telemetryWindowSource(), /window_duration_ms: input\.windowEndTimestamp - input\.windowTelemetry\.windowStartTimestamp/)
 })
 
 test('train mode uses shared heuristic challenge label for telemetry', () => {
   const game = gameSource()
+  const challengeModels = challengeModelsSource()
   assert.match(game, /const predictedLabel = this\.predictChallengeLabelForMode\(latestTelemetry\)/)
-  assert.match(game, /predictChallengeLabelForMode\(features\) \{\n    if \(this\.gameMode !== "flow"\) \{\n      return this\.predictHeuristicChallengeLabel\(features\)/)
-  assert.match(game, /challenge_label: predictedLabel/)
+  assert.match(game, /predictFlowClimbChallengeLabelForMode\(features, \{/)
+  assert.match(challengeModels, /if \(options\.gameMode !== modes\.FLOW\) \{\n    return predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.match(telemetryWindowSource(), /challenge_label: input\.predictedLabel/)
 })
 
 test('10-second window collects telemetry, sends it, then adjusts difficulty', () => {
@@ -89,7 +96,7 @@ test('10-second window collects telemetry, sends it, then adjusts difficulty', (
 })
 
 test('telemetry window payload contains the study fields', () => {
-  const game = gameSource()
+  const telemetryWindow = telemetryWindowSource()
   const requiredFields = [
     'window_index',
     'vertical_position_y',
@@ -121,37 +128,42 @@ test('telemetry window payload contains the study fields', () => {
   ]
 
   for (const field of requiredFields) {
-    assert.match(game, new RegExp(`${field}:`), `missing telemetry field ${field}`)
+    assert.match(telemetryWindow, new RegExp(`${field}:`), `missing telemetry field ${field}`)
   }
 })
 
 test('device type is tracked as a top-level mobile or desktop column', () => {
   const game = gameSource()
-  assert.match(game, /device_type: this\.currentDeviceType\(\)/)
+  const telemetryWindow = telemetryWindowSource()
+  assert.match(game, /deviceType: this\.currentDeviceType\(\)/)
+  assert.match(telemetryWindow, /device_type: input\.deviceType/)
   assert.match(game, /currentDeviceType\(\)/)
   assert.match(game, /return \(coarsePointer \|\| \(touchCapable && narrowViewport\)\) \? "mobile" : "desktop"/)
-  assert.doesNotMatch(game, /screen_orientation:/)
+  assert.doesNotMatch(telemetryWindow, /screen_orientation:/)
 })
 
 test('skipped platforms are rewarded and tracked without missed-platform penalties', () => {
   const game = gameSource()
+  const telemetryWindow = telemetryWindowSource()
   assert.doesNotMatch(game, /MISSED_FLAG_PENALTY/)
   assert.match(game, /const SKIPPED_PLATFORM_REWARD = 2/)
   assert.match(game, /this\.skipReward \+= reward/)
   assert.match(game, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
   assert.match(game, /this\.incrementWindowCounter\("skipReward", reward\)/)
   assert.match(game, /this\.score = this\.flagsCollected \+ this\.skipReward - this\.deathPenalty/)
+  assert.match(telemetryWindow, /skipped_platforms: input\.windowTelemetry\.skippedPlatforms/)
   assert.match(game, /showScoreIndicator\(`\+\$\{reward\} skip`/)
 })
 
 test('failed jumps are tracked by specific jump key', () => {
   const game = gameSource()
+  const telemetryWindow = telemetryWindowSource()
   assert.match(game, /failedJumpAttempts: 0/)
   assert.match(game, /failedJumpCountsByJump: \{\}/)
   assert.match(game, /recordFailedJumpAttempt\(\)/)
   assert.match(game, /const jumpKey = `\$\{fromId\}->\$\{toId\}`/)
-  assert.match(game, /repeated_failed_jump_attempts: repeatedFailedJumpAttempts/)
-  assert.match(game, /distinct_failed_jumps: Object\.keys\(failedJumpCounts\)\.length/)
+  assert.match(telemetryWindow, /repeated_failed_jump_attempts: repeatedFailedJumpAttempts/)
+  assert.match(telemetryWindow, /distinct_failed_jumps: Object\.keys\(failedJumpCounts\)\.length/)
 })
 
 test('telemetry window shows a subtle short upload indicator', () => {
@@ -163,11 +175,13 @@ test('telemetry window shows a subtle short upload indicator', () => {
 
 test('menu modes and model display behavior are wired', () => {
   const game = gameSource()
-  assert.match(game, /makeButton\(390, "Train mode", "train"\)/)
-  assert.match(game, /makeButton\(470, "Flow mode", "flow"\)/)
-  assert.match(game, /FLOW_MODEL_NAMES = \["heuristic", "edge_logistic_regression"\]/)
-  assert.match(game, /this\.modelText\.setVisible\(this\.gameMode === "flow"\)/)
-  assert.match(game, /return this\.selectedFlowModel === "edge_logistic_regression" \? "flow-ML" : "flow-heuristic"/)
+  const constants = constantsSource()
+  assert.match(game, /makeButton\(390, "Train mode", FLOWCLIMB_MODES\.TRAIN\)/)
+  assert.match(game, /makeButton\(470, "Flow mode", FLOWCLIMB_MODES\.FLOW\)/)
+  assert.match(game, /FLOW_MODEL_NAMES = \[/)
+  assert.match(constants, /EDGE_LOGISTIC_REGRESSION: "edge_logistic_regression"/)
+  assert.match(game, /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
+  assert.match(game, /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
 })
 
 test('removed sudden death UI wording', () => {

@@ -6,8 +6,8 @@ Always update the version when making any code, behavior, telemetry, UI, test, d
 
 Update all three places together:
 
-- `game.js`: `GAME_VERSION = "vX.Y.Z"`
-- `index.html`: cache-busting query params for `telemetry.js` and `game.js`
+- `src/game.js`: `GAME_VERSION = "vX.Y.Z"`
+- `index.html`: cache-busting query params for every local `src/*.js` script tag
 - `package.json`: `version` without the leading `v`
 
 Increment methodology:
@@ -30,7 +30,7 @@ When making a meaningful change or addition, add or update tests that guard the 
 
 Treat telemetry field names as study schema. Do not rename or remove telemetry fields without an appropriate mid/major version bump and tests.
 
-If the telemetry data schema changes, update `TELEMETRY_SCHEMA_VERSION` in `game.js` and ensure the `data_schema_version` telemetry column receives the new value.
+If the telemetry data schema changes, update `TELEMETRY_SCHEMA_VERSION` in `src/game.js` and ensure the `data_schema_version` telemetry column receives the new value.
 
 Preserve the 10-second window order:
 

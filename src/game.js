@@ -78,9 +78,12 @@ const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
-const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
+const FLOW_MODEL_NAMES = [
+  FLOWCLIMB_FLOW_MODELS.HEURISTIC,
+  FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION,
+]
 const TELEMETRY_SCHEMA_VERSION = 5
-const GAME_VERSION = "v0.9.0"
+const GAME_VERSION = "v0.9.4"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -208,7 +211,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.selectedFlowModel = null
     this.lastFlowModelUpdateTimestamp = 0
     this.lastTelemetryWindowTimestamp = 0
-    this.lastChallengeLabel = "appropriately_challenged"
+    this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
     this.lastFlagsForModel = 0
     this.lastDeathsForModel = 0
     this.lastHeightForModel = 0
@@ -258,8 +261,8 @@ class EndlessClimberScene extends Phaser.Scene {
       return button
     }
 
-    const trainButton = makeButton(390, "Train mode", "train")
-    const flowButton = makeButton(470, "Flow mode", "flow")
+    const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
+    const flowButton = makeButton(470, "Flow mode", FLOWCLIMB_MODES.FLOW)
     this.menuButtons = [trainButton, flowButton]
     const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via a randomly selected model.", {
       fontSize: "16px",
@@ -321,8 +324,8 @@ class EndlessClimberScene extends Phaser.Scene {
 
   startRun(mode) {
     this.gameMode = mode
-    this.selectedFlowModel = mode === "flow" ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
-    this.lastChallengeLabel = "appropriately_challenged"
+    this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
+    this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
     this.lastFlowModelUpdateTimestamp = Date.now()
     this.lastFlagsForModel = 0
     this.lastDeathsForModel = 0
@@ -365,7 +368,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.screenState = "playing"
     this.setMenuVisible(false)
     this.setHudVisible(true)
-    this.modelText.setVisible(this.gameMode === "flow")
+    this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
     this.setTouchControlsVisible(true)
     this.resetFallbackKeys()
     this.spawnPrefetch = null
@@ -451,6 +454,18 @@ class EndlessClimberScene extends Phaser.Scene {
     }
   }
 
+  recordLeftPress() {
+    this.incrementWindowCounter("leftKeyPresses")
+  }
+
+  recordRightPress() {
+    this.incrementWindowCounter("rightKeyPresses")
+  }
+
+  recordJumpPress() {
+    this.incrementWindowCounter("jumpKeyPresses")
+  }
+
   resetWindowTelemetryCounters(windowStartTimestamp = Date.now(), windowStartingHeight = this.heightClimbed || 0) {
     this.windowTelemetry = {
       windowStartTimestamp,
@@ -483,7 +498,7 @@ class EndlessClimberScene extends Phaser.Scene {
     }
 
     try {
-      this.spawnWorker = new Worker(`./spawn-worker.js?v=${GAME_VERSION}`)
+      this.spawnWorker = new Worker(`./src/spawn-worker.js?v=${GAME_VERSION}`)
       this.spawnWorker.onmessage = (event) => {
         const payload = event.data
         if (!payload || payload.type !== "generated") {
@@ -724,7 +739,7 @@ class EndlessClimberScene extends Phaser.Scene {
     }
 
     if (this.consumeActionPress("r")) {
-      this.startRun(this.gameMode || "train")
+      this.startRun(this.gameMode || FLOWCLIMB_MODES.TRAIN)
       return
     }
 
@@ -1042,8 +1057,8 @@ class EndlessClimberScene extends Phaser.Scene {
     this.flagsText.setText(`Flags: ${this.flagsCollected}`)
     this.deathsText.setText(`Deaths: ${this.deathCount}`)
     this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}`)
-    this.modeText.setText(`Mode: ${this.gameMode === "flow" ? "Flow" : "Train"}`)
-    this.modelText.setVisible(this.gameMode === "flow")
+    this.modeText.setText(`Mode: ${this.gameMode === FLOWCLIMB_MODES.FLOW ? "Flow" : "Train"}`)
+    this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
     this.modelText.setText(`Flow model: ${this.selectedFlowModel} (${this.lastChallengeLabel})`)
     this.pauseOverlay.setVisible(this.isPaused)
     this.pauseOverlayHint.setVisible(this.isPaused)
@@ -1384,10 +1399,10 @@ class EndlessClimberScene extends Phaser.Scene {
 
     this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
 
-    if (this.gameMode === "flow") {
-      if (predictedLabel === "under_challenged") {
+    if (this.gameMode === FLOWCLIMB_MODES.FLOW) {
+      if (predictedLabel === FLOWCLIMB_CHALLENGE_LABELS.UNDER) {
         this.difficultyLevel = Math.min(DIFFICULTY_MAX, this.difficultyLevel + FLOW_DIFFICULTY_STEP)
-      } else if (predictedLabel === "over_challenged") {
+      } else if (predictedLabel === FLOWCLIMB_CHALLENGE_LABELS.OVER) {
         this.difficultyLevel = Math.max(DIFFICULTY_MIN, this.difficultyLevel - FLOW_DIFFICULTY_STEP)
       }
       this.lastChallengeLabel = predictedLabel
@@ -1435,62 +1450,35 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   buildTelemetryWindowPayload(latestTelemetry, previousDifficulty, predictedLabel, now) {
-    const spawnParams = this.currentSpawnParams(this.difficultyLevel)
-    const failedJumpCounts = this.windowTelemetry.failedJumpCountsByJump
-    const repeatedFailedJumpAttempts = Object.values(failedJumpCounts)
-      .reduce((total, count) => total + Math.max(0, count - 1), 0)
-    return {
-      data_schema_version: TELEMETRY_SCHEMA_VERSION,
-      window_index: this.telemetryWindowIndex,
-      window_started_at: new Date(this.windowTelemetry.windowStartTimestamp).toISOString(),
-      window_ended_at: new Date(now).toISOString(),
-      window_duration_ms: now - this.windowTelemetry.windowStartTimestamp,
-      game_mode: this.gameModeLabel(),
-      device_type: this.currentDeviceType(),
-      vertical_position_y: Math.round(this.player.y),
-      height_climbed: this.heightClimbed,
-      window_starting_height: this.windowTelemetry.windowStartingHeight,
+    return buildFlowClimbTelemetryWindowPayload({
+      telemetrySchemaVersion: TELEMETRY_SCHEMA_VERSION,
+      telemetryWindowIndex: this.telemetryWindowIndex,
+      windowTelemetry: this.windowTelemetry,
+      windowEndTimestamp: now,
+      gameModeLabel: this.gameModeLabel(),
+      deviceType: this.currentDeviceType(),
+      player: this.player,
+      heightClimbed: this.heightClimbed,
       score: this.score,
-      difficulty: this.difficultyLevel,
-      previous_difficulty: previousDifficulty,
-      challenge_label: predictedLabel,
-      jumps_landed_on_new_platforms: this.windowTelemetry.jumpLandingsOnNewPlatforms,
-      new_platforms_reached: this.windowTelemetry.newPlatformsReached,
-      deaths: this.windowTelemetry.deaths,
-      skipped_platforms: this.windowTelemetry.skippedPlatforms,
-      skip_reward: this.windowTelemetry.skipReward,
-      skip_reward_total: this.skipReward,
-      failed_jump_attempts: this.windowTelemetry.failedJumpAttempts,
-      distinct_failed_jumps: Object.keys(failedJumpCounts).length,
-      repeated_failed_jump_attempts: repeatedFailedJumpAttempts,
-      failed_jump_counts: failedJumpCounts,
-      total_horizontal_movement_px: Math.round(this.windowTelemetry.horizontalMovement),
-      left_key_presses: this.windowTelemetry.leftKeyPresses,
-      right_key_presses: this.windowTelemetry.rightKeyPresses,
-      jump_key_presses: this.windowTelemetry.jumpKeyPresses,
-      platform_width_min_px: spawnParams.minWidth,
-      platform_width_max_px: spawnParams.maxWidth,
-      platform_width_avg_px: Math.round((spawnParams.minWidth + spawnParams.maxWidth) / 2),
-      platform_height_min_px: spawnParams.minHeight,
-      platform_height_max_px: spawnParams.maxHeight,
-      platform_height_avg_px: Math.round((spawnParams.minHeight + spawnParams.maxHeight) / 2),
-      platform_gap_y_min_px: spawnParams.minGapY,
-      platform_gap_y_max_px: spawnParams.maxGapY,
-      platform_gap_y_avg_px: Math.round((spawnParams.minGapY + spawnParams.maxGapY) / 2),
-      platform_x_shift_min_px: spawnParams.minXShift,
-      platform_x_shift_max_px: spawnParams.maxXShift,
-      platform_speed_px_per_frame: Number(this.movingPlatformSpeedForDifficulty(this.difficultyLevel).toFixed(3)),
-      flags_collected_total: this.flagsCollected,
-      deaths_total: this.deathCount,
-      seconds_since_flag: Number(latestTelemetry.secondsSinceFlag.toFixed(3)),
-    }
+      difficultyLevel: this.difficultyLevel,
+      previousDifficulty,
+      predictedLabel,
+      skipReward: this.skipReward,
+      spawnParams: this.currentSpawnParams(this.difficultyLevel),
+      platformSpeed: this.movingPlatformSpeedForDifficulty(this.difficultyLevel),
+      flagsCollected: this.flagsCollected,
+      deathCount: this.deathCount,
+      latestTelemetry,
+    })
   }
 
   gameModeLabel() {
-    if (this.gameMode !== "flow") {
-      return "train"
+    if (this.gameMode !== FLOWCLIMB_MODES.FLOW) {
+      return FLOWCLIMB_GAME_MODE_LABELS.TRAIN
     }
-    return this.selectedFlowModel === "edge_logistic_regression" ? "flow-ML" : "flow-heuristic"
+    return this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION
+      ? FLOWCLIMB_GAME_MODE_LABELS.FLOW_ML
+      : FLOWCLIMB_GAME_MODE_LABELS.FLOW_HEURISTIC
   }
 
   currentDeviceType() {
@@ -1529,52 +1517,11 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   predictChallengeLabelForMode(features) {
-    if (this.gameMode !== "flow") {
-      return this.predictHeuristicChallengeLabel(features)
-    }
-    return this.predictChallengeLabel(features)
-  }
-
-  predictChallengeLabel(features) {
-    if (this.selectedFlowModel === "edge_logistic_regression") {
-      return this.predictLogisticRegressionChallengeLabel(features)
-    }
-    return this.predictHeuristicChallengeLabel(features)
-  }
-
-  predictHeuristicChallengeLabel(features) {
-    const lowUpwardProgress = features.heightDelta < 80
-    const noObjectiveProgress = features.flagsDelta === 0
-
-    if (features.deathsDelta >= 2 || (features.deathsDelta >= 1 && lowUpwardProgress) || (noObjectiveProgress && features.heightDelta < 40)) {
-      return "over_challenged"
-    }
-    if (features.flagsDelta >= 2 && features.deathsDelta === 0 && features.heightDelta >= 140) {
-      return "under_challenged"
-    }
-    return "appropriately_challenged"
-  }
-
-  predictLogisticRegressionChallengeLabel(features) {
-    const x = {
-      bias: 1,
-      flagsDelta: features.flagsDelta,
-      deathsDelta: features.deathsDelta,
-      intervalFlagsPerMinute: features.intervalFlagsPerMinute,
-      intervalDeathsPerMinute: features.intervalDeathsPerMinute,
-      secondsSinceFlag: features.secondsSinceFlag / 30,
-      difficulty: features.difficulty / DIFFICULTY_MAX,
-    }
-    const scores = {
-      under_challenged:
-        -1.1 + (1.35 * x.flagsDelta) - (1.7 * x.deathsDelta) + (0.18 * x.intervalFlagsPerMinute) - (0.7 * x.intervalDeathsPerMinute) - (0.8 * x.secondsSinceFlag) - (0.2 * x.difficulty),
-      over_challenged:
-        -1.0 - (0.7 * x.flagsDelta) + (1.6 * x.deathsDelta) - (0.12 * x.intervalFlagsPerMinute) + (0.9 * x.intervalDeathsPerMinute) + (1.25 * x.secondsSinceFlag) + (0.15 * x.difficulty),
-      appropriately_challenged:
-        0.4 - (0.15 * Math.abs(x.flagsDelta - 1)) - (0.6 * x.deathsDelta) - (0.25 * Math.max(0, x.secondsSinceFlag - 0.75)),
-    }
-
-    return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
+    return predictFlowClimbChallengeLabelForMode(features, {
+      gameMode: this.gameMode,
+      selectedFlowModel: this.selectedFlowModel,
+      difficultyMax: DIFFICULTY_MAX,
+    })
   }
 
   showScoreIndicator(text, color) {
@@ -1709,7 +1656,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.touchControlBindings = [
       bind(document.getElementById("touch-left"), {
         down: () => {
-          this.incrementWindowCounter("leftKeyPresses")
+          this.recordLeftPress()
           this.fallbackKeyState.left = true
           this.fallbackKeyState.right = false
         },
@@ -1722,7 +1669,7 @@ class EndlessClimberScene extends Phaser.Scene {
       }),
       bind(document.getElementById("touch-right"), {
         down: () => {
-          this.incrementWindowCounter("rightKeyPresses")
+          this.recordRightPress()
           this.fallbackKeyState.right = true
           this.fallbackKeyState.left = false
         },
@@ -1735,7 +1682,7 @@ class EndlessClimberScene extends Phaser.Scene {
       }),
       bind(document.getElementById("touch-jump"), {
         down: () => {
-          this.incrementWindowCounter("jumpKeyPresses")
+          this.recordJumpPress()
           this.pendingActionPress.space = true
         },
       }),
@@ -1774,19 +1721,19 @@ class EndlessClimberScene extends Phaser.Scene {
 
   updateFallbackKeyStateOnDown(code) {
     if (code === "ArrowLeft" || code === "KeyA") {
-      this.incrementWindowCounter("leftKeyPresses")
+      this.recordLeftPress()
       this.fallbackKeyState.left = true
       this.fallbackKeyState.right = false
       return
     }
     if (code === "ArrowRight" || code === "KeyD") {
-      this.incrementWindowCounter("rightKeyPresses")
+      this.recordRightPress()
       this.fallbackKeyState.right = true
       this.fallbackKeyState.left = false
       return
     }
     if (code === "Space") {
-      this.incrementWindowCounter("jumpKeyPresses")
+      this.recordJumpPress()
       this.pendingActionPress.space = true
       return
     }
