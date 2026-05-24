@@ -79,7 +79,7 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const GAME_VERSION = "v0.2.35"
+const GAME_VERSION = "v0.2.39"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -1313,13 +1313,6 @@ class EndlessClimberScene extends Phaser.Scene {
 
   updateDifficultyFromElapsedTime() {
     const now = Date.now()
-    if (this.gameMode !== "flow") {
-      const elapsedMs = now - this.runStartTimestamp
-      const timedDifficulty = DIFFICULTY_MIN + Math.floor(elapsedMs / DIFFICULTY_UPDATE_INTERVAL_MS)
-      this.difficultyLevel = Phaser.Math.Clamp(timedDifficulty, DIFFICULTY_MIN, DIFFICULTY_MAX)
-      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
-    }
-
     const telemetryElapsedMs = now - this.lastTelemetryWindowTimestamp
     if (telemetryElapsedMs < DIFFICULTY_UPDATE_INTERVAL_MS) {
       return
@@ -1338,6 +1331,11 @@ class EndlessClimberScene extends Phaser.Scene {
 
     if (this.gameMode === "flow") {
       predictedLabel = this.predictChallengeLabel(latestTelemetry)
+    }
+
+    this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
+
+    if (this.gameMode === "flow") {
       if (predictedLabel === "under_challenged") {
         this.difficultyLevel = Math.min(DIFFICULTY_MAX, this.difficultyLevel + FLOW_DIFFICULTY_STEP)
       } else if (predictedLabel === "over_challenged") {
@@ -1346,9 +1344,13 @@ class EndlessClimberScene extends Phaser.Scene {
       this.lastChallengeLabel = predictedLabel
       this.lastFlowModelUpdateTimestamp = windowEndTimestamp
       this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    } else {
+      const elapsedMs = windowEndTimestamp - this.runStartTimestamp
+      const timedDifficulty = DIFFICULTY_MIN + Math.floor(elapsedMs / DIFFICULTY_UPDATE_INTERVAL_MS)
+      this.difficultyLevel = Phaser.Math.Clamp(timedDifficulty, DIFFICULTY_MIN, DIFFICULTY_MAX)
+      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
     }
 
-    this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
     this.lastTelemetryWindowTimestamp = windowEndTimestamp
     this.lastFlagsForModel = this.flagsCollected
     this.lastDeathsForModel = this.deathCount
