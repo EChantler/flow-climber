@@ -30,6 +30,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
   assert.match(game, /gameVersion: GAME_VERSION/)
   for (const column of [
     'game_version',
+    'data_schema_version',
     'session_id',
     'game_mode',
     'window_index',
@@ -42,6 +43,13 @@ test('repeated telemetry values are configured as top-level columns', () => {
   ]) {
     assert.match(telemetry, new RegExp(`${column}[:,]`), `missing top-level telemetry column ${column}`)
   }
+})
+
+test('data schema version is tracked as a top-level telemetry column', () => {
+  const game = gameSource()
+  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 2/)
+  assert.match(game, /data_schema_version: TELEMETRY_SCHEMA_VERSION/)
+  assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
 })
 
 test('only 10-second telemetry window events are logged from gameplay', () => {
@@ -87,6 +95,10 @@ test('telemetry window payload contains the study fields', () => {
     'jumps_landed_on_new_platforms',
     'new_platforms_reached',
     'deaths',
+    'failed_jump_attempts',
+    'distinct_failed_jumps',
+    'repeated_failed_jump_attempts',
+    'failed_jump_counts',
     'total_horizontal_movement_px',
     'left_key_presses',
     'right_key_presses',
@@ -106,6 +118,16 @@ test('telemetry window payload contains the study fields', () => {
   for (const field of requiredFields) {
     assert.match(game, new RegExp(`${field}:`), `missing telemetry field ${field}`)
   }
+})
+
+test('failed jumps are tracked by specific jump key', () => {
+  const game = gameSource()
+  assert.match(game, /failedJumpAttempts: 0/)
+  assert.match(game, /failedJumpCountsByJump: \{\}/)
+  assert.match(game, /recordFailedJumpAttempt\(\)/)
+  assert.match(game, /const jumpKey = `\$\{fromId\}->\$\{toId\}`/)
+  assert.match(game, /repeated_failed_jump_attempts: repeatedFailedJumpAttempts/)
+  assert.match(game, /distinct_failed_jumps: Object\.keys\(failedJumpCounts\)\.length/)
 })
 
 test('menu modes and model display behavior are wired', () => {

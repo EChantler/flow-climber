@@ -30,6 +30,8 @@ When making a meaningful change or addition, add or update tests that guard the 
 
 Treat telemetry field names as study schema. Do not rename or remove telemetry fields without an appropriate mid/major version bump and tests.
 
+If the telemetry data schema changes, update `TELEMETRY_SCHEMA_VERSION` in `game.js` and ensure the `data_schema_version` telemetry column receives the new value.
+
 Preserve the 10-second window order:
 
 1. Collect telemetry

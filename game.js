@@ -79,7 +79,8 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const GAME_VERSION = "v0.4.2"
+const TELEMETRY_SCHEMA_VERSION = 2
+const GAME_VERSION = "v0.6.1"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -208,6 +209,8 @@ class EndlessClimberScene extends Phaser.Scene {
     this.windowTelemetry = null
     this.telemetryWindowIndex = 0
     this.jumpStartedPlatform = null
+    this.jumpTargetPlatform = null
+    this.nextPlatformId = 0
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.teardownTouchControls()
@@ -359,6 +362,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.setTouchControlsVisible(true)
     this.resetFallbackKeys()
     this.spawnPrefetch = null
+    this.nextPlatformId = 0
     const startParams = this.currentSpawnParams(DIFFICULTY_MIN)
     const startIsWide = Math.random() < WIDE_PLATFORM_CHANCE
     const [startWidth, startHeight] = this.randomPlatformDimensions(startParams, startIsWide)
@@ -373,6 +377,7 @@ class EndlessClimberScene extends Phaser.Scene {
       flagVisible: false,
     }
 
+    this.assignPlatformId(startPlatform)
     const nextPlatform = this.getNextPlatform(startPlatform, DIFFICULTY_MIN)
     this.platforms = [this.decoratePlatform(startPlatform, DIFFICULTY_MIN, false), nextPlatform]
     this.platforms[0].reached = true
@@ -423,6 +428,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.maxDifficultyAchieved = DIFFICULTY_MIN
     this.groundPlatform = this.platforms[0]
     this.jumpStartedPlatform = null
+    this.jumpTargetPlatform = null
     this.isPaused = false
     this.pauseOverlay.setVisible(false)
     this.pauseOverlayHint.setVisible(false)
@@ -448,7 +454,17 @@ class EndlessClimberScene extends Phaser.Scene {
       leftKeyPresses: 0,
       rightKeyPresses: 0,
       jumpKeyPresses: 0,
+      failedJumpAttempts: 0,
+      failedJumpCountsByJump: {},
     }
+  }
+
+  assignPlatformId(platform) {
+    if (platform.id === undefined || platform.id === null) {
+      platform.id = this.nextPlatformId
+      this.nextPlatformId += 1
+    }
+    return platform
   }
 
   initializeSpawnWorker() {
@@ -557,7 +573,7 @@ class EndlessClimberScene extends Phaser.Scene {
     if (this.spawnPrefetch && this.spawnPrefetch.key === key) {
       const cached = this.spawnPrefetch.platform
       this.spawnPrefetch = null
-      return this.decoratePlatform({
+      return this.decoratePlatform(this.assignPlatformId({
         x: cached.x,
         y: cached.y,
         width: cached.width,
@@ -565,10 +581,10 @@ class EndlessClimberScene extends Phaser.Scene {
         isWide: !!cached.isWide,
         flagCollected: false,
         flagVisible: false,
-      }, difficultyLevel)
+      }), difficultyLevel)
     }
 
-    return this.decoratePlatform(this.spawnNextPlatformForLevel(fromPlatform, difficultyLevel), difficultyLevel)
+    return this.decoratePlatform(this.assignPlatformId(this.spawnNextPlatformForLevel(fromPlatform, difficultyLevel)), difficultyLevel)
   }
 
   ensurePlatformBuffer(difficultyLevel) {
@@ -768,6 +784,7 @@ class EndlessClimberScene extends Phaser.Scene {
       this.player.velocityY = JUMP_VELOCITY
       this.player.onGround = false
       this.jumpStartedPlatform = this.groundPlatform
+      this.jumpTargetPlatform = this.platforms[this.objectivePlatformIndex] || null
       this.jumpBufferExpiresAt = 0
       this.coyoteExpiresAt = 0
     }
@@ -824,6 +841,7 @@ class EndlessClimberScene extends Phaser.Scene {
           this.incrementWindowCounter("jumpLandingsOnNewPlatforms")
         }
         this.jumpStartedPlatform = null
+        this.jumpTargetPlatform = null
         this.lastSafePlatform = platform
         this.groundPlatform = platform
         landedPlatformIndex = this.platforms.indexOf(platform)
@@ -883,6 +901,7 @@ class EndlessClimberScene extends Phaser.Scene {
     } else if (this.player.y > lowestPlatform.y + FALL_BELOW_LOWEST_PLATFORM_MARGIN) {
       this.deathCount += 1
       this.incrementWindowCounter("deaths")
+      this.recordFailedJumpAttempt()
       this.recordDeathTimestamp(now)
       this.flashHudText(this.deathsText)
       const diedWhileOnPlatform = this.player.onGround
@@ -910,6 +929,7 @@ class EndlessClimberScene extends Phaser.Scene {
       this.player.velocityY = 0
       this.player.velocityX = 0
       this.jumpStartedPlatform = null
+      this.jumpTargetPlatform = null
       this.respawnGraceFrames = RESPAWN_GRACE_FRAMES
       this.flagCollectGraceFrames = FLAG_COLLECT_GRACE_FRAMES
       this.groundPlatform = respawnPlatform
@@ -1167,6 +1187,24 @@ class EndlessClimberScene extends Phaser.Scene {
     this.deathTimestamps.push(timestamp)
   }
 
+  recordFailedJumpAttempt() {
+    if (!this.windowTelemetry) {
+      return
+    }
+
+    const fromPlatform = this.jumpStartedPlatform || this.groundPlatform || this.lastSafePlatform
+    const toPlatform = this.jumpTargetPlatform || this.platforms?.[this.objectivePlatformIndex] || null
+    if (!fromPlatform || !toPlatform) {
+      return
+    }
+
+    const fromId = fromPlatform.id ?? "unknown"
+    const toId = toPlatform.id ?? "unknown"
+    const jumpKey = `${fromId}->${toId}`
+    this.windowTelemetry.failedJumpAttempts += 1
+    this.windowTelemetry.failedJumpCountsByJump[jumpKey] = (this.windowTelemetry.failedJumpCountsByJump[jumpKey] || 0) + 1
+  }
+
   updateUnstuckAvailability(now = Date.now()) {
     const cutoff = now - UNSTUCK_WINDOW_MS
     this.deathTimestamps = this.deathTimestamps.filter((timestamp) => timestamp >= cutoff)
@@ -1191,6 +1229,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.player.velocityY = 0
     this.player.onGround = true
     this.jumpStartedPlatform = null
+    this.jumpTargetPlatform = null
     this.lastSafePlatform = targetPlatform
     this.groundPlatform = targetPlatform
     this.cameraY = targetPlatform.y - PLAYER_CAMERA_TARGET_SCREEN_Y
@@ -1367,8 +1406,11 @@ class EndlessClimberScene extends Phaser.Scene {
 
   buildTelemetryWindowPayload(latestTelemetry, previousDifficulty, predictedLabel, now) {
     const spawnParams = this.currentSpawnParams(this.difficultyLevel)
+    const failedJumpCounts = this.windowTelemetry.failedJumpCountsByJump
+    const repeatedFailedJumpAttempts = Object.values(failedJumpCounts)
+      .reduce((total, count) => total + Math.max(0, count - 1), 0)
     return {
-      schema_version: 1,
+      data_schema_version: TELEMETRY_SCHEMA_VERSION,
       window_index: this.telemetryWindowIndex,
       window_started_at: new Date(this.windowTelemetry.windowStartTimestamp).toISOString(),
       window_ended_at: new Date(now).toISOString(),
@@ -1384,6 +1426,10 @@ class EndlessClimberScene extends Phaser.Scene {
       jumps_landed_on_new_platforms: this.windowTelemetry.jumpLandingsOnNewPlatforms,
       new_platforms_reached: this.windowTelemetry.newPlatformsReached,
       deaths: this.windowTelemetry.deaths,
+      failed_jump_attempts: this.windowTelemetry.failedJumpAttempts,
+      distinct_failed_jumps: Object.keys(failedJumpCounts).length,
+      repeated_failed_jump_attempts: repeatedFailedJumpAttempts,
+      failed_jump_counts: failedJumpCounts,
       total_horizontal_movement_px: Math.round(this.windowTelemetry.horizontalMovement),
       left_key_presses: this.windowTelemetry.leftKeyPresses,
       right_key_presses: this.windowTelemetry.rightKeyPresses,
