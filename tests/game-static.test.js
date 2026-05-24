@@ -24,6 +24,26 @@ test('game version matches index cache-busting query params and package version'
   assert.equal(packageJson.version, cacheVersion)
 })
 
+test('repeated telemetry values are configured as top-level columns', () => {
+  const game = gameSource()
+  const telemetry = fs.readFileSync('telemetry.js', 'utf8')
+  assert.match(game, /gameVersion: GAME_VERSION/)
+  for (const column of [
+    'game_version',
+    'session_id',
+    'game_mode',
+    'window_index',
+    'window_started_at',
+    'window_ended_at',
+    'difficulty',
+    'score',
+    'height_climbed',
+    'challenge_label',
+  ]) {
+    assert.match(telemetry, new RegExp(`${column}[:,]`), `missing top-level telemetry column ${column}`)
+  }
+})
+
 test('only 10-second telemetry window events are logged from gameplay', () => {
   const game = gameSource()
   const eventTypes = [...game.matchAll(/this\.logTelemetry\("([^"]+)"/g)].map((match) => match[1])

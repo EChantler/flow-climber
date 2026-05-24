@@ -79,7 +79,7 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const GAME_VERSION = "v0.2.39"
+const GAME_VERSION = "v0.3.0"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -1088,6 +1088,7 @@ class EndlessClimberScene extends Phaser.Scene {
       batchSize: globalConfig.batchSize || 12,
       flushIntervalMs: globalConfig.flushIntervalMs || 15000,
       sessionId: this.sessionId,
+      gameVersion: GAME_VERSION,
     }
   }
 

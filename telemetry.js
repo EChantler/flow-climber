@@ -6,6 +6,7 @@ class TelemetryManager {
     this.batchSize = options.batchSize || 12
     this.flushIntervalMs = options.flushIntervalMs || 15000
     this.sessionId = options.sessionId || null
+    this.gameVersion = options.gameVersion || null
     this.onAccessDenied = options.onAccessDenied || null
     this.enabled = !!(this.supabase && this.participantToken)
     this.buffer = []
@@ -62,13 +63,35 @@ class TelemetryManager {
       return
     }
 
+    const {
+      session_id: explicitSessionId,
+      game_mode,
+      window_index,
+      window_started_at,
+      window_ended_at,
+      difficulty,
+      score,
+      height_climbed,
+      challenge_label,
+      ...metadata
+    } = extra
+
     this.buffer.push({
       token_used: this.participantToken,
       event_type: type,
       metric_value: value,
+      game_version: this.gameVersion,
+      session_id: explicitSessionId || this.sessionId,
+      game_mode,
+      window_index,
+      window_started_at,
+      window_ended_at,
+      difficulty,
+      score,
+      height_climbed,
+      challenge_label,
       metadata: {
-        ...extra,
-        session_id: this.sessionId,
+        ...metadata,
         logged_at: new Date().toISOString(),
       },
     })

@@ -1,6 +1,6 @@
 {
   "name": "flow-climber",
-  "version": "0.2.39",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "test": "node --test"
