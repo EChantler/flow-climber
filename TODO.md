@@ -2,12 +2,8 @@
 
 ## Design
 
-- Rework skipped-platform handling:
-  - Stop penalizing players for skipping platforms.
-  - Reward players for successful skips instead.
-  - Add skipped-platform count/metadata to the 10-second telemetry window.
-  - Decide whether rewards should scale with number of platforms skipped, difficulty, or both.
-  - Reasoning: skipping platforms can reflect skill, confidence, speed, and risk-taking rather than failure. If the game should support flow and mastery, successful skips should likely be rewarded and measured instead of treated as missed objectives.
+- Review whether skipped-platform rewards should eventually scale by difficulty as well as skipped count.
+  - Reasoning: skipped platforms are currently rewarded linearly by count. Difficulty-scaled rewards may better reflect risk, but should be evaluated after observing telemetry.
 
 ## Cleanup and maintenance
 
@@ -37,5 +33,5 @@
 - Consider documenting the telemetry schema in a dedicated markdown file after the schema settles.
   - Reasoning: the schema is important for Supabase maintenance and study analysis. Waiting until it stabilizes avoids maintaining stale documentation during rapid iteration.
 
-- Review whether `score`, `deathPenalty`, and skipped-platform logic should be renamed/reworked once skipping becomes a reward.
-  - Reasoning: if skipping changes from penalty to reward, current names and score calculations may become misleading. This should be revisited together with the skipped-platform design change.
+- Review whether `score`, `deathPenalty`, and `skipReward` should be wrapped in a clearer scoring model.
+  - Reasoning: scoring now combines flag collection, death penalties, and skipped-platform rewards. A focused scoring helper would make future design tuning easier.

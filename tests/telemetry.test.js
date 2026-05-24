@@ -45,12 +45,12 @@ test('TelemetryManager buffers events with participant token and session metadat
   const telemetry = new TelemetryManager(supabase, 'token_01', {
     tableName: 'telemetry',
     sessionId: 'session_123',
-    gameVersion: 'v0.6.0',
+    gameVersion: 'v0.7.0',
     batchSize: 99,
   })
 
   telemetry.log('telemetry_window', 42, {
-    data_schema_version: 2,
+    data_schema_version: 3,
     game_mode: 'flow-heuristic',
     window_index: 7,
     window_started_at: '2026-05-23T21:23:17.718Z',
@@ -70,8 +70,8 @@ test('TelemetryManager buffers events with participant token and session metadat
   assert.equal(inserted[0].token_used, 'token_01')
   assert.equal(inserted[0].event_type, 'telemetry_window')
   assert.equal(inserted[0].metric_value, 42)
-  assert.equal(inserted[0].game_version, 'v0.6.0')
-  assert.equal(inserted[0].data_schema_version, 2)
+  assert.equal(inserted[0].game_version, 'v0.7.0')
+  assert.equal(inserted[0].data_schema_version, 3)
   assert.equal(inserted[0].session_id, 'session_123')
   assert.equal(inserted[0].game_mode, 'flow-heuristic')
   assert.equal(inserted[0].window_index, 7)

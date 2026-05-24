@@ -17,7 +17,7 @@ const JUMP_BUFFER_MS = 120
 const COYOTE_TIME_MS = 100
 const UNSTUCK_DEATH_THRESHOLD = 5
 const UNSTUCK_WINDOW_MS = 30000
-const MISSED_FLAG_PENALTY = 2
+const SKIPPED_PLATFORM_REWARD = 2
 const INITIAL_OBJECTIVE_PLATFORM_INDEX = 1
 
 const DIFFICULTY_MIN = 1
@@ -79,8 +79,8 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const TELEMETRY_SCHEMA_VERSION = 2
-const GAME_VERSION = "v0.6.1"
+const TELEMETRY_SCHEMA_VERSION = 3
+const GAME_VERSION = "v0.7.3"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -129,6 +129,11 @@ class EndlessClimberScene extends Phaser.Scene {
     this.jumpText = this.add.text(14, 196, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
     this.pauseHintText = this.add.text(14, 216, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
     this.restartText = this.add.text(14, 236, "R: Restart run   Q: Quit to menu", { fontSize: "16px", color: "#d6deea" })
+    this.uploadIcon = this.add.text(14, SCREEN_HEIGHT - 28, "↥", {
+      fontSize: "14px",
+      color: "#93a4bd",
+      alpha: 0.45,
+    }).setOrigin(0, 1).setVisible(false)
     this.versionText = this.add.text(SCREEN_WIDTH - 10, SCREEN_HEIGHT - 8, `FlowClimb ${GAME_VERSION}`, {
       fontSize: "12px",
       color: "#93a4bd",
@@ -197,6 +202,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.landingTractionExpiresAt = 0
     this.deathTimestamps = []
     this.unstuckAvailable = false
+    this.uploadIconTimer = null
     this.screenState = "loading"
     this.gameMode = null
     this.selectedFlowModel = null
@@ -302,6 +308,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.pauseOverlay.setVisible(false)
     this.pauseOverlayHint.setVisible(false)
     this.unstuckOverlay.setVisible(false)
+    this.uploadIcon.setVisible(false)
     this.setMenuVisible(true)
     this.drawMenuBackground()
   }
@@ -409,6 +416,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.heightClimbed = 0
     this.flagsCollected = 0
     this.deathPenalty = 0
+    this.skipReward = 0
     this.score = 0
     this.difficultyLevel = DIFFICULTY_MIN
     this.lastSafePlatform = this.platforms[0]
@@ -454,6 +462,8 @@ class EndlessClimberScene extends Phaser.Scene {
       leftKeyPresses: 0,
       rightKeyPresses: 0,
       jumpKeyPresses: 0,
+      skippedPlatforms: 0,
+      skipReward: 0,
       failedJumpAttempts: 0,
       failedJumpCountsByJump: {},
     }
@@ -669,11 +679,14 @@ class EndlessClimberScene extends Phaser.Scene {
       return false
     }
 
-    const missedCount = landedPlatformIndex - this.objectivePlatformIndex
-    this.deathPenalty += MISSED_FLAG_PENALTY * missedCount
+    const skippedCount = landedPlatformIndex - this.objectivePlatformIndex
+    const reward = SKIPPED_PLATFORM_REWARD * skippedCount
+    this.skipReward += reward
+    this.incrementWindowCounter("skippedPlatforms", skippedCount)
+    this.incrementWindowCounter("skipReward", reward)
     this.lastFlagTimestamp = now
     this.updateScore()
-    this.showScoreIndicator(`-${MISSED_FLAG_PENALTY * missedCount}`, "#ffb84d")
+    this.showScoreIndicator(`+${reward} skip`, "#55d6ff")
 
     this.objectivePlatformIndex = Math.min(landedPlatformIndex + 1, this.platforms.length - 1)
     this.retireResolvedPlatforms()
@@ -1318,7 +1331,7 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   updateScore() {
-    this.score = this.flagsCollected - this.deathPenalty
+    this.score = this.flagsCollected + this.skipReward - this.deathPenalty
   }
 
   updateHeightClimbed() {
@@ -1396,12 +1409,29 @@ class EndlessClimberScene extends Phaser.Scene {
   }
 
   logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, now) {
+    this.flashUploadIcon()
     this.logTelemetry("telemetry_window", this.score, this.buildTelemetryWindowPayload(
       latestTelemetry,
       previousDifficulty,
       predictedLabel,
       now,
     ))
+  }
+
+  flashUploadIcon() {
+    if (!this.uploadIcon) {
+      return
+    }
+
+    if (this.uploadIconTimer) {
+      this.uploadIconTimer.remove(false)
+    }
+
+    this.uploadIcon.setVisible(true)
+    this.uploadIconTimer = this.time.delayedCall(100, () => {
+      this.uploadIcon.setVisible(false)
+      this.uploadIconTimer = null
+    })
   }
 
   buildTelemetryWindowPayload(latestTelemetry, previousDifficulty, predictedLabel, now) {
@@ -1426,6 +1456,9 @@ class EndlessClimberScene extends Phaser.Scene {
       jumps_landed_on_new_platforms: this.windowTelemetry.jumpLandingsOnNewPlatforms,
       new_platforms_reached: this.windowTelemetry.newPlatformsReached,
       deaths: this.windowTelemetry.deaths,
+      skipped_platforms: this.windowTelemetry.skippedPlatforms,
+      skip_reward: this.windowTelemetry.skipReward,
+      skip_reward_total: this.skipReward,
       failed_jump_attempts: this.windowTelemetry.failedJumpAttempts,
       distinct_failed_jumps: Object.keys(failedJumpCounts).length,
       repeated_failed_jump_attempts: repeatedFailedJumpAttempts,

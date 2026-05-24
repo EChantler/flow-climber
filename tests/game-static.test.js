@@ -47,7 +47,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
 
 test('data schema version is tracked as a top-level telemetry column', () => {
   const game = gameSource()
-  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 2/)
+  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 3/)
   assert.match(game, /data_schema_version: TELEMETRY_SCHEMA_VERSION/)
   assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
 })
@@ -95,6 +95,9 @@ test('telemetry window payload contains the study fields', () => {
     'jumps_landed_on_new_platforms',
     'new_platforms_reached',
     'deaths',
+    'skipped_platforms',
+    'skip_reward',
+    'skip_reward_total',
     'failed_jump_attempts',
     'distinct_failed_jumps',
     'repeated_failed_jump_attempts',
@@ -120,6 +123,17 @@ test('telemetry window payload contains the study fields', () => {
   }
 })
 
+test('skipped platforms are rewarded and tracked without missed-platform penalties', () => {
+  const game = gameSource()
+  assert.doesNotMatch(game, /MISSED_FLAG_PENALTY/)
+  assert.match(game, /const SKIPPED_PLATFORM_REWARD = 2/)
+  assert.match(game, /this\.skipReward \+= reward/)
+  assert.match(game, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
+  assert.match(game, /this\.incrementWindowCounter\("skipReward", reward\)/)
+  assert.match(game, /this\.score = this\.flagsCollected \+ this\.skipReward - this\.deathPenalty/)
+  assert.match(game, /showScoreIndicator\(`\+\$\{reward\} skip`/)
+})
+
 test('failed jumps are tracked by specific jump key', () => {
   const game = gameSource()
   assert.match(game, /failedJumpAttempts: 0/)
@@ -128,6 +142,13 @@ test('failed jumps are tracked by specific jump key', () => {
   assert.match(game, /const jumpKey = `\$\{fromId\}->\$\{toId\}`/)
   assert.match(game, /repeated_failed_jump_attempts: repeatedFailedJumpAttempts/)
   assert.match(game, /distinct_failed_jumps: Object\.keys\(failedJumpCounts\)\.length/)
+})
+
+test('telemetry window shows a subtle short upload indicator', () => {
+  const game = gameSource()
+  assert.match(game, /this\.uploadIcon = this\.add\.text\(14, SCREEN_HEIGHT - 28, "↥"/)
+  assert.match(game, /this\.flashUploadIcon\(\)\n    this\.logTelemetry\("telemetry_window"/)
+  assert.match(game, /this\.time\.delayedCall\(100/)
 })
 
 test('menu modes and model display behavior are wired', () => {
