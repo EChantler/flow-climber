@@ -35,6 +35,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
   for (const column of [
     'game_version',
     'data_schema_version',
+    'deployment_context',
     'session_id',
     'device_type',
     'game_mode',
@@ -52,7 +53,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
 
 test('data schema version is tracked as a top-level telemetry column', () => {
   const game = gameSource()
-  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 5/)
+  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 6/)
   assert.match(game, /telemetrySchemaVersion: TELEMETRY_SCHEMA_VERSION/)
   assert.match(telemetryWindowSource(), /data_schema_version: input\.telemetrySchemaVersion/)
   assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
@@ -123,6 +124,7 @@ test('telemetry window payload contains the study fields', () => {
     'height_climbed',
     'window_starting_height',
     'game_mode',
+    'deployment_context',
     'device_type',
     'score',
   ]
@@ -130,6 +132,15 @@ test('telemetry window payload contains the study fields', () => {
   for (const field of requiredFields) {
     assert.match(telemetryWindow, new RegExp(`${field}:`), `missing telemetry field ${field}`)
   }
+})
+
+test('deployment context is tracked as a top-level local or deployed column', () => {
+  const game = gameSource()
+  const telemetryWindow = telemetryWindowSource()
+  assert.match(game, /deploymentContext: this\.currentDeploymentContext\(\)/)
+  assert.match(game, /currentDeploymentContext\(\)/)
+  assert.match(game, /return isLocal \? "local" : "deployed"/)
+  assert.match(telemetryWindow, /deployment_context: input\.deploymentContext/)
 })
 
 test('device type is tracked as a top-level mobile or desktop column', () => {

@@ -82,8 +82,8 @@ const FLOW_MODEL_NAMES = [
   FLOWCLIMB_FLOW_MODELS.HEURISTIC,
   FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION,
 ]
-const TELEMETRY_SCHEMA_VERSION = 5
-const GAME_VERSION = "v0.9.4"
+const TELEMETRY_SCHEMA_VERSION = 6
+const GAME_VERSION = "v0.10.0"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -1456,6 +1456,7 @@ class EndlessClimberScene extends Phaser.Scene {
       windowTelemetry: this.windowTelemetry,
       windowEndTimestamp: now,
       gameModeLabel: this.gameModeLabel(),
+      deploymentContext: this.currentDeploymentContext(),
       deviceType: this.currentDeviceType(),
       player: this.player,
       heightClimbed: this.heightClimbed,
@@ -1479,6 +1480,16 @@ class EndlessClimberScene extends Phaser.Scene {
     return this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION
       ? FLOWCLIMB_GAME_MODE_LABELS.FLOW_ML
       : FLOWCLIMB_GAME_MODE_LABELS.FLOW_HEURISTIC
+  }
+
+  currentDeploymentContext() {
+    const protocol = window.location?.protocol || ""
+    const hostname = window.location?.hostname || ""
+    const isLocal = protocol === "file:"
+      || hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname === "::1"
+    return isLocal ? "local" : "deployed"
   }
 
   currentDeviceType() {

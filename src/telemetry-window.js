@@ -10,6 +10,7 @@ function buildFlowClimbTelemetryWindowPayload(input) {
     window_ended_at: new Date(input.windowEndTimestamp).toISOString(),
     window_duration_ms: input.windowEndTimestamp - input.windowTelemetry.windowStartTimestamp,
     game_mode: input.gameModeLabel,
+    deployment_context: input.deploymentContext,
     device_type: input.deviceType,
     vertical_position_y: Math.round(input.player.y),
     height_climbed: input.heightClimbed,

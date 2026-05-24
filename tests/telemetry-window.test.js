@@ -32,6 +32,7 @@ test('telemetry window payload helper computes repeated failed jump metrics', ()
       jumpKeyPresses: 3,
     },
     gameModeLabel: 'train',
+    deploymentContext: 'deployed',
     deviceType: 'desktop',
     player: { y: 99.8 },
     heightClimbed: 120,
@@ -57,6 +58,7 @@ test('telemetry window payload helper computes repeated failed jump metrics', ()
   })
 
   assert.equal(payload.window_duration_ms, 10000)
+  assert.equal(payload.deployment_context, 'deployed')
   assert.equal(payload.distinct_failed_jumps, 2)
   assert.equal(payload.repeated_failed_jump_attempts, 1)
   assert.deepEqual(payload.failed_jump_counts, { '1->2': 2, '2->3': 1 })
