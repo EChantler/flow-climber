@@ -66,6 +66,7 @@ class TelemetryManager {
     const {
       session_id: explicitSessionId,
       data_schema_version,
+      device_type,
       game_mode,
       window_index,
       window_started_at,
@@ -83,6 +84,7 @@ class TelemetryManager {
       metric_value: value,
       game_version: this.gameVersion,
       data_schema_version,
+      device_type,
       session_id: explicitSessionId || this.sessionId,
       game_mode,
       window_index,

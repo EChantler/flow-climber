@@ -32,6 +32,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
     'game_version',
     'data_schema_version',
     'session_id',
+    'device_type',
     'game_mode',
     'window_index',
     'window_started_at',
@@ -47,7 +48,7 @@ test('repeated telemetry values are configured as top-level columns', () => {
 
 test('data schema version is tracked as a top-level telemetry column', () => {
   const game = gameSource()
-  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 3/)
+  assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 5/)
   assert.match(game, /data_schema_version: TELEMETRY_SCHEMA_VERSION/)
   assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
 })
@@ -115,12 +116,21 @@ test('telemetry window payload contains the study fields', () => {
     'height_climbed',
     'window_starting_height',
     'game_mode',
+    'device_type',
     'score',
   ]
 
   for (const field of requiredFields) {
     assert.match(game, new RegExp(`${field}:`), `missing telemetry field ${field}`)
   }
+})
+
+test('device type is tracked as a top-level mobile or desktop column', () => {
+  const game = gameSource()
+  assert.match(game, /device_type: this\.currentDeviceType\(\)/)
+  assert.match(game, /currentDeviceType\(\)/)
+  assert.match(game, /return \(coarsePointer \|\| \(touchCapable && narrowViewport\)\) \? "mobile" : "desktop"/)
+  assert.doesNotMatch(game, /screen_orientation:/)
 })
 
 test('skipped platforms are rewarded and tracked without missed-platform penalties', () => {

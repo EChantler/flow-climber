@@ -79,8 +79,8 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const TELEMETRY_SCHEMA_VERSION = 3
-const GAME_VERSION = "v0.7.3"
+const TELEMETRY_SCHEMA_VERSION = 5
+const GAME_VERSION = "v0.9.0"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -1446,6 +1446,7 @@ class EndlessClimberScene extends Phaser.Scene {
       window_ended_at: new Date(now).toISOString(),
       window_duration_ms: now - this.windowTelemetry.windowStartTimestamp,
       game_mode: this.gameModeLabel(),
+      device_type: this.currentDeviceType(),
       vertical_position_y: Math.round(this.player.y),
       height_climbed: this.heightClimbed,
       window_starting_height: this.windowTelemetry.windowStartingHeight,
@@ -1490,6 +1491,15 @@ class EndlessClimberScene extends Phaser.Scene {
       return "train"
     }
     return this.selectedFlowModel === "edge_logistic_regression" ? "flow-ML" : "flow-heuristic"
+  }
+
+  currentDeviceType() {
+    const coarsePointer = typeof window.matchMedia === "function"
+      ? window.matchMedia("(pointer: coarse)").matches
+      : false
+    const touchCapable = (navigator.maxTouchPoints || 0) > 0
+    const narrowViewport = (window.innerWidth || SCREEN_WIDTH) < 900
+    return (coarsePointer || (touchCapable && narrowViewport)) ? "mobile" : "desktop"
   }
 
   getLatestTelemetryWindow(now) {

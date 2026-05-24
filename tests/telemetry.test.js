@@ -45,12 +45,13 @@ test('TelemetryManager buffers events with participant token and session metadat
   const telemetry = new TelemetryManager(supabase, 'token_01', {
     tableName: 'telemetry',
     sessionId: 'session_123',
-    gameVersion: 'v0.7.0',
+    gameVersion: 'v0.9.0',
     batchSize: 99,
   })
 
   telemetry.log('telemetry_window', 42, {
-    data_schema_version: 3,
+    data_schema_version: 5,
+    device_type: 'mobile',
     game_mode: 'flow-heuristic',
     window_index: 7,
     window_started_at: '2026-05-23T21:23:17.718Z',
@@ -70,8 +71,9 @@ test('TelemetryManager buffers events with participant token and session metadat
   assert.equal(inserted[0].token_used, 'token_01')
   assert.equal(inserted[0].event_type, 'telemetry_window')
   assert.equal(inserted[0].metric_value, 42)
-  assert.equal(inserted[0].game_version, 'v0.7.0')
-  assert.equal(inserted[0].data_schema_version, 3)
+  assert.equal(inserted[0].game_version, 'v0.9.0')
+  assert.equal(inserted[0].data_schema_version, 5)
+  assert.equal(inserted[0].device_type, 'mobile')
   assert.equal(inserted[0].session_id, 'session_123')
   assert.equal(inserted[0].game_mode, 'flow-heuristic')
   assert.equal(inserted[0].window_index, 7)
@@ -84,6 +86,7 @@ test('TelemetryManager buffers events with participant token and session metadat
   assert.equal(inserted[0].metadata.total_horizontal_movement_px, 99)
   assert.equal(inserted[0].metadata.session_id, undefined)
   assert.equal(inserted[0].metadata.data_schema_version, undefined)
+  assert.equal(inserted[0].metadata.device_type, undefined)
   assert.equal(inserted[0].metadata.difficulty, undefined)
   assert.equal(inserted[0].metadata.score, undefined)
   assert.match(inserted[0].metadata.logged_at, /^\d{4}-\d{2}-\d{2}T/)
