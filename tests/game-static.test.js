@@ -53,6 +53,13 @@ test('only 10-second telemetry window events are logged from gameplay', () => {
   assert.match(game, /window_duration_ms: now - this\.windowTelemetry\.windowStartTimestamp/)
 })
 
+test('train mode uses shared heuristic challenge label for telemetry', () => {
+  const game = gameSource()
+  assert.match(game, /const predictedLabel = this\.predictChallengeLabelForMode\(latestTelemetry\)/)
+  assert.match(game, /predictChallengeLabelForMode\(features\) \{\n    if \(this\.gameMode !== "flow"\) \{\n      return this\.predictHeuristicChallengeLabel\(features\)/)
+  assert.match(game, /challenge_label: predictedLabel/)
+})
+
 test('10-second window collects telemetry, sends it, then adjusts difficulty', () => {
   const game = gameSource()
   const body = game.match(/  updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  logTelemetryWindow/)?.[1]

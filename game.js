@@ -79,7 +79,7 @@ const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
 const FLOW_MODEL_NAMES = ["heuristic", "edge_logistic_regression"]
-const GAME_VERSION = "v0.3.0"
+const GAME_VERSION = "v0.4.2"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -1328,11 +1328,7 @@ class EndlessClimberScene extends Phaser.Scene {
     const windowEndTimestamp = this.lastTelemetryWindowTimestamp + DIFFICULTY_UPDATE_INTERVAL_MS
     const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)
     const previousDifficulty = this.difficultyLevel
-    let predictedLabel = null
-
-    if (this.gameMode === "flow") {
-      predictedLabel = this.predictChallengeLabel(latestTelemetry)
-    }
+    const predictedLabel = this.predictChallengeLabelForMode(latestTelemetry)
 
     this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
 
@@ -1441,6 +1437,13 @@ class EndlessClimberScene extends Phaser.Scene {
       secondsSinceFlag: (now - this.lastFlagTimestamp) / 1000,
       difficulty: this.difficultyLevel,
     }
+  }
+
+  predictChallengeLabelForMode(features) {
+    if (this.gameMode !== "flow") {
+      return this.predictHeuristicChallengeLabel(features)
+    }
+    return this.predictChallengeLabel(features)
   }
 
   predictChallengeLabel(features) {
