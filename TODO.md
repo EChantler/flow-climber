@@ -17,8 +17,8 @@
 - Add more focused behavioral tests around in-scene telemetry counters, especially movement, deaths, new-platform landings, and input press counts.
   - Reasoning: pure helper tests now cover model and payload behavior, but Phaser scene counter semantics still rely mostly on static tests. These counters are important for analysis and should be protected from regressions.
 
-- Consider documenting the telemetry schema in a dedicated markdown file after the schema settles.
-  - Reasoning: the schema is important for Supabase maintenance and study analysis. Waiting until it stabilizes avoids maintaining stale documentation during rapid iteration.
+- Evaluate the promoted LogisticRegression ONNX model against real telemetry and decide whether LogisticRegression, LinearSVC, or GaussianNB should be used for Flow ML.
+  - Reasoning: the current promoted ONNX model was generated from synthetic data to validate the pipeline. It should be retrained and selected with real study data before drawing conclusions.
 
 - Review whether `score`, `deathPenalty`, and `skipReward` should be wrapped in a clearer scoring model.
   - Reasoning: scoring now combines flag collection, death penalties, and skipped-platform rewards. A focused scoring helper would make future design tuning easier.

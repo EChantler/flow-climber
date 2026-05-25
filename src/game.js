@@ -78,12 +78,8 @@ const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
-const FLOW_MODEL_NAMES = [
-  FLOWCLIMB_FLOW_MODELS.HEURISTIC,
-  FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION,
-]
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.10.1"
+const GAME_VERSION = "v0.13.2"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -212,6 +208,9 @@ class EndlessClimberScene extends Phaser.Scene {
     this.lastFlowModelUpdateTimestamp = 0
     this.lastTelemetryWindowTimestamp = 0
     this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
+    this.flowOnnxModel = createFlowClimbOnnxChallengeModel()
+    this.flowOnnxModelReady = false
+    this.difficultyUpdateInProgress = false
     this.lastFlagsForModel = 0
     this.lastDeathsForModel = 0
     this.lastHeightForModel = 0
@@ -264,7 +263,7 @@ class EndlessClimberScene extends Phaser.Scene {
     const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
     const flowButton = makeButton(470, "Flow mode", FLOWCLIMB_MODES.FLOW)
     this.menuButtons = [trainButton, flowButton]
-    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via a randomly selected model.", {
+    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via LogisticRegression ONNX model.", {
       fontSize: "16px",
       color: "#93a4bd",
       align: "center",
@@ -324,13 +323,26 @@ class EndlessClimberScene extends Phaser.Scene {
 
   startRun(mode) {
     this.gameMode = mode
-    this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
+    this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION : null
     this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
     this.lastFlowModelUpdateTimestamp = Date.now()
     this.lastFlagsForModel = 0
     this.lastDeathsForModel = 0
     this.lastHeightForModel = 0
     this.resetWorld()
+  }
+
+  async bootstrapFlowModel() {
+    this.setAccessOverlay("Loading Flow model...", "Preparing the study model.")
+    this.flowOnnxModelReady = await this.flowOnnxModel.load()
+    if (!this.flowOnnxModelReady) {
+      const hint = window.location?.protocol === "file:"
+        ? "ONNX models cannot load from file://. Serve the folder over http://localhost and try again."
+        : "Please notify the developer and include this message."
+      this.blockAccess("Flow model failed to load", hint)
+      return false
+    }
+    return true
   }
 
   async bootstrapAccessControl() {
@@ -349,6 +361,11 @@ class EndlessClimberScene extends Phaser.Scene {
         if (!this.accessBlocked) {
           this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
         }
+        return
+      }
+
+      const flowModelReady = await this.bootstrapFlowModel()
+      if (!flowModelReady || this.accessBlocked) {
         return
       }
 
@@ -748,7 +765,7 @@ class EndlessClimberScene extends Phaser.Scene {
       return
     }
 
-    this.updateDifficultyFromElapsedTime()
+    void this.updateDifficultyFromElapsedTime()
 
     const frameScale = Math.min(delta / (1000 / 60), MAX_FRAME_SCALE)
     const now = Date.now()
@@ -1059,7 +1076,10 @@ class EndlessClimberScene extends Phaser.Scene {
     this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}`)
     this.modeText.setText(`Mode: ${this.gameMode === FLOWCLIMB_MODES.FLOW ? "Flow" : "Train"}`)
     this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
-    this.modelText.setText(`Flow model: ${this.selectedFlowModel} (${this.lastChallengeLabel})`)
+    const modelStatus = this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION
+      ? `, onnx: ${this.flowOnnxModel.status}`
+      : ""
+    this.modelText.setText(`Flow model: ${this.selectedFlowModel}${modelStatus} (${this.lastChallengeLabel})`)
     this.pauseOverlay.setVisible(this.isPaused)
     this.pauseOverlayHint.setVisible(this.isPaused)
     this.unstuckOverlay.setVisible(this.unstuckAvailable)
@@ -1379,23 +1399,33 @@ class EndlessClimberScene extends Phaser.Scene {
     return BACKGROUND_HEIGHT_STOPS[BACKGROUND_HEIGHT_STOPS.length - 1].color
   }
 
-  updateDifficultyFromElapsedTime() {
+  async updateDifficultyFromElapsedTime() {
+    if (this.difficultyUpdateInProgress) {
+      return
+    }
+
     const now = Date.now()
     const telemetryElapsedMs = now - this.lastTelemetryWindowTimestamp
     if (telemetryElapsedMs < DIFFICULTY_UPDATE_INTERVAL_MS) {
       return
     }
 
+    this.difficultyUpdateInProgress = true
     if (telemetryElapsedMs > DIFFICULTY_UPDATE_INTERVAL_MS * 2) {
       this.lastTelemetryWindowTimestamp = now
       this.resetWindowTelemetryCounters(now, this.heightClimbed)
+      this.difficultyUpdateInProgress = false
       return
     }
 
     const windowEndTimestamp = this.lastTelemetryWindowTimestamp + DIFFICULTY_UPDATE_INTERVAL_MS
     const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)
     const previousDifficulty = this.difficultyLevel
-    const predictedLabel = this.predictChallengeLabelForMode(latestTelemetry)
+    const predictedLabel = await this.predictChallengeLabelForMode(latestTelemetry)
+    if (!predictedLabel || this.accessBlocked) {
+      this.difficultyUpdateInProgress = false
+      return
+    }
 
     this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
 
@@ -1421,6 +1451,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.lastHeightForModel = this.heightClimbed
     this.telemetryWindowIndex += 1
     this.resetWindowTelemetryCounters(windowEndTimestamp, this.heightClimbed)
+    this.difficultyUpdateInProgress = false
   }
 
   logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, now) {
@@ -1527,7 +1558,26 @@ class EndlessClimberScene extends Phaser.Scene {
     }
   }
 
-  predictChallengeLabelForMode(features) {
+  async predictChallengeLabelForMode(features) {
+    if (this.gameMode === FLOWCLIMB_MODES.FLOW
+      && this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION) {
+      if (!this.flowOnnxModelReady) {
+        this.blockAccess("Flow model is not ready", "Please notify the developer and include this message.")
+        return null
+      }
+
+      try {
+        const onnxLabel = await this.flowOnnxModel.predict(features)
+        if (onnxLabel) {
+          return onnxLabel
+        }
+      } catch (error) {
+        console.error("FlowClimb ONNX prediction failed:", error)
+      }
+      this.blockAccess("Flow model prediction failed", "Please notify the developer and include this message.")
+      return null
+    }
+
     return predictFlowClimbChallengeLabelForMode(features, {
       gameMode: this.gameMode,
       selectedFlowModel: this.selectedFlowModel,

@@ -1,0 +1,13 @@
+session-*.md
+__pycache__/
+*.pyc
+
+# Local ML data, generated model artifacts, and tracking state
+ml/data/*.csv
+ml/models/*.onnx
+ml/models/*.json
+ml/mlruns/
+ml/.mlflow/
+
+!ml/data/.gitkeep
+!ml/models/.gitkeep

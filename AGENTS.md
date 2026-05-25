@@ -38,6 +38,10 @@ Preserve the 10-second window order:
 2. Send telemetry
 3. Adjust difficulty
 
+## Machine learning
+
+ML training scaffolding lives in `ml/`. Do not commit local CSV exports, generated ONNX files, MLflow runs, or other generated training artifacts unless intentionally promoting a model artifact for game use. Promoted browser-consumed model artifacts live under `src/models/flow/`.
+
 ## Safety
 
 Do not add new secrets or tokens. If telemetry config changes, prefer documented configuration over hardcoding.

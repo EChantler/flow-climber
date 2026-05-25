@@ -1,10 +1,30 @@
 # FlowClimb
 
-Static Phaser game that can run directly from `index.html` and be deployed to GitHub Pages.
+Static Phaser game that can be served from any static HTTP server and deployed to GitHub Pages.
 
 ## Local testing
 
-Open `index.html` directly in the browser, or serve the folder with any static server.
+Serve the folder with the built-in local dev command, then open the local HTTP URL. Direct `file://` loading is no longer supported because browsers block ONNX model fetches from local files.
+
+```bash
+npm start
+```
+
+Then open:
+
+`http://localhost:8000/`
+
+Equivalent manual command:
+
+```bash
+python3 -m http.server 8000
+```
+
+## Machine learning
+
+Training scaffolding lives in `ml/`. It uses a Conda environment, MLflow tracking, CSV exports in `ml/data/`, and ONNX model outputs in `ml/models/`. Promoted game-ready ONNX artifacts live in `src/models/flow/`.
+
+See `ml/README.md`.
 
 ## GitHub Pages deploy
 

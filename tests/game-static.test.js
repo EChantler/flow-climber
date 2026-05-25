@@ -7,10 +7,11 @@ const gameSource = () => fs.readFileSync('src/game.js', 'utf8')
 const telemetryWindowSource = () => fs.readFileSync('src/telemetry-window.js', 'utf8')
 const challengeModelsSource = () => fs.readFileSync('src/challenge-models.js', 'utf8')
 const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
+const onnxModelSource = () => fs.readFileSync('src/onnx-challenge-model.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['src/flow-constants.js', 'src/challenge-models.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/challenge-models.js', 'src/onnx-challenge-model.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -19,10 +20,11 @@ test('game version matches index cache-busting query params and package version'
   const game = gameSource()
   const index = indexSource()
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+  assert.equal(packageJson.scripts.start, 'python3 -m http.server 8000')
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  for (const script of ['flow-constants.js', 'challenge-models.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
+  for (const script of ['flow-constants.js', 'challenge-models.js', 'onnx-challenge-model.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
     assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
   }
   assert.equal(packageJson.version, cacheVersion)
@@ -71,7 +73,7 @@ test('only 10-second telemetry window events are logged from gameplay', () => {
 test('train mode uses shared heuristic challenge label for telemetry', () => {
   const game = gameSource()
   const challengeModels = challengeModelsSource()
-  assert.match(game, /const predictedLabel = this\.predictChallengeLabelForMode\(latestTelemetry\)/)
+  assert.match(game, /const predictedLabel = await this\.predictChallengeLabelForMode\(latestTelemetry\)/)
   assert.match(game, /predictFlowClimbChallengeLabelForMode\(features, \{/)
   assert.match(challengeModels, /if \(options\.gameMode !== modes\.FLOW\) \{\n    return predictFlowClimbHeuristicChallengeLabel\(features\)/)
   assert.match(telemetryWindowSource(), /challenge_label: input\.predictedLabel/)
@@ -79,7 +81,7 @@ test('train mode uses shared heuristic challenge label for telemetry', () => {
 
 test('10-second window collects telemetry, sends it, then adjusts difficulty', () => {
   const game = gameSource()
-  const body = game.match(/  updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  logTelemetryWindow/)?.[1]
+  const body = game.match(/  async updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  logTelemetryWindow/)?.[1]
   assert.ok(body, 'updateDifficultyFromElapsedTime body should be found')
 
   const collectIndex = body.indexOf('const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)')
@@ -189,10 +191,28 @@ test('menu modes and model display behavior are wired', () => {
   const constants = constantsSource()
   assert.match(game, /makeButton\(390, "Train mode", FLOWCLIMB_MODES\.TRAIN\)/)
   assert.match(game, /makeButton\(470, "Flow mode", FLOWCLIMB_MODES\.FLOW\)/)
-  assert.match(game, /FLOW_MODEL_NAMES = \[/)
+  assert.match(game, /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? FLOWCLIMB_FLOW_MODELS\.EDGE_LOGISTIC_REGRESSION : null/)
   assert.match(constants, /EDGE_LOGISTIC_REGRESSION: "edge_logistic_regression"/)
   assert.match(game, /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
   assert.match(game, /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
+})
+
+test('flow ML model loads logistic regression ONNX with blocking failure behavior', () => {
+  const game = gameSource()
+  const onnxModel = onnxModelSource()
+  const index = indexSource()
+  assert.match(index, /onnxruntime-web@1\.20\.1\/dist\/ort\.min\.js/)
+  assert.match(onnxModel, /logistic_regression\.onnx/)
+  assert.match(onnxModel, /logistic_regression\.metadata\.json/)
+  assert.match(onnxModel, /feature_columns\.map/)
+  assert.match(game, /this\.flowOnnxModel = createFlowClimbOnnxChallengeModel\(\)/)
+  assert.match(game, /const onnxLabel = await this\.flowOnnxModel\.predict\(features\)/)
+  assert.match(game, /ONNX models cannot load from file:\/\//)
+  assert.match(game, /this\.blockAccess\("Flow model failed to load", hint\)/)
+  assert.match(game, /this\.blockAccess\("Flow model prediction failed", "Please notify the developer and include this message\."\)/)
+  assert.doesNotMatch(game, /falling back to JS model/)
+  assert.ok(fs.existsSync('src/models/flow/logistic_regression.onnx'))
+  assert.ok(fs.existsSync('src/models/flow/logistic_regression.metadata.json'))
 })
 
 test('removed sudden death UI wording', () => {

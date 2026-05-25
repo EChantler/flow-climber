@@ -1,0 +1,22 @@
+{
+  "classes": [
+    "appropriately_challenged",
+    "over_challenged",
+    "under_challenged"
+  ],
+  "feature_columns": [
+    "height_delta",
+    "flags_delta",
+    "deaths_delta",
+    "seconds_since_flag",
+    "difficulty",
+    "interval_flags_per_minute",
+    "interval_deaths_per_minute"
+  ],
+  "metrics": {
+    "accuracy": 1.0
+  },
+  "model_name": "logistic_regression",
+  "onnx_file": "logistic_regression.onnx",
+  "target_column": "challenge_label"
+}
