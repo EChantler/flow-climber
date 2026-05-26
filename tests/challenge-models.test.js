@@ -3,11 +3,16 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const vm = require('node:vm')
 
-function loadChallengeModels() {
+function loadGameHelpers() {
+  const game = fs.readFileSync('src/game.js', 'utf8')
+  const helperSource = game.match(/function predictFlowClimbHeuristicChallengeLabel[\s\S]*?\n}\n\nconst BACKGROUND_HEIGHT_STOPS/)?.[0]
+    ?.replace(/\n\nconst BACKGROUND_HEIGHT_STOPS$/, '')
+  assert.ok(helperSource, 'heuristic helper should be found in game.js')
+
   const context = { globalThis: {} }
   context.globalThis = context
   vm.runInNewContext(fs.readFileSync('src/flow-constants.js', 'utf8'), context, { filename: 'src/flow-constants.js' })
-  vm.runInNewContext(fs.readFileSync('src/challenge-models.js', 'utf8'), context, { filename: 'src/challenge-models.js' })
+  vm.runInNewContext(helperSource, context, { filename: 'src/game.js#heuristic-helper' })
   return context
 }
 
@@ -25,27 +30,17 @@ function baseFeatures(overrides = {}) {
 }
 
 test('heuristic model classifies over, under, and appropriate challenge labels', () => {
-  const models = loadChallengeModels()
+  const models = loadGameHelpers()
   assert.equal(
     models.predictFlowClimbHeuristicChallengeLabel(baseFeatures({ deathsDelta: 2 })),
     models.FLOWCLIMB_CHALLENGE_LABELS.OVER,
   )
   assert.equal(
-    models.predictFlowClimbHeuristicChallengeLabel(baseFeatures({ flagsDelta: 2, heightDelta: 160 })),
+    models.predictFlowClimbHeuristicChallengeLabel(baseFeatures({ deathsDelta: 0, heightDelta: 800 })),
     models.FLOWCLIMB_CHALLENGE_LABELS.UNDER,
   )
   assert.equal(
     models.predictFlowClimbHeuristicChallengeLabel(baseFeatures()),
     models.FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE,
   )
-})
-
-test('train mode uses heuristic model through shared challenge prediction entry point', () => {
-  const models = loadChallengeModels()
-  const label = models.predictFlowClimbChallengeLabelForMode(baseFeatures({ deathsDelta: 2 }), {
-    gameMode: models.FLOWCLIMB_MODES.TRAIN,
-    selectedFlowModel: models.FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX,
-    difficultyMax: 10,
-  })
-  assert.equal(label, models.FLOWCLIMB_CHALLENGE_LABELS.OVER)
 })

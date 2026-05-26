@@ -5,13 +5,12 @@ const { execFileSync } = require('node:child_process')
 
 const gameSource = () => fs.readFileSync('src/game.js', 'utf8')
 const telemetryWindowSource = () => fs.readFileSync('src/telemetry-window.js', 'utf8')
-const challengeModelsSource = () => fs.readFileSync('src/challenge-models.js', 'utf8')
 const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
 const onnxModelSource = () => fs.readFileSync('src/onnx-challenge-model.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['src/flow-constants.js', 'src/challenge-models.js', 'src/onnx-challenge-model.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/onnx-challenge-model.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -24,7 +23,7 @@ test('game version matches index cache-busting query params and package version'
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  for (const script of ['flow-constants.js', 'challenge-models.js', 'onnx-challenge-model.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
+  for (const script of ['flow-constants.js', 'onnx-challenge-model.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
     assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
   }
   assert.equal(packageJson.version, cacheVersion)
@@ -72,10 +71,11 @@ test('only 10-second telemetry window events are logged from gameplay', () => {
 
 test('train mode uses shared heuristic challenge label for telemetry', () => {
   const game = gameSource()
-  const challengeModels = challengeModelsSource()
   assert.match(game, /const predictedLabel = await this\.predictChallengeLabelForMode\(latestTelemetry\)/)
-  assert.match(game, /predictFlowClimbChallengeLabelForMode\(features, \{/)
-  assert.match(challengeModels, /if \(options\.gameMode !== modes\.FLOW\) \{\n    return predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.match(game, /function predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.match(game, /return predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.doesNotMatch(game, /predictFlowClimbChallengeLabelForMode\(/)
+  assert.doesNotMatch(game, /predictFlowClimbLogisticRegressionChallengeLabel/)
   assert.match(telemetryWindowSource(), /challenge_label: input\.predictedLabel/)
 })
 

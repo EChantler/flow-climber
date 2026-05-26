@@ -22,7 +22,6 @@ const INITIAL_OBJECTIVE_PLATFORM_INDEX = 1
 
 const DIFFICULTY_MIN = 1
 const DIFFICULTY_MAX = 10
-const DIFFICULTY_SCORE_STEP = 6
 const START_PLATFORM_BOTTOM_MARGIN = 34
 
 const PLAYER_WIDTH = 24
@@ -68,7 +67,7 @@ const MOVING_PLATFORM_SPEED_MAX = 1.2
 const MOVING_PLATFORM_RANGE_MIN = 72
 const MOVING_PLATFORM_RANGE_MAX = 180
 const PLATFORMS_BEHIND_TO_KEEP = 2
-const PLATFORMS_AHEAD_TO_KEEP = 11
+const PLATFORMS_AHEAD_TO_KEEP = 5
 const PLATFORM_WINDOW_SIZE = PLATFORMS_BEHIND_TO_KEEP + PLATFORMS_AHEAD_TO_KEEP
 const CAMERA_FOLLOW_LERP = 0.08
 const PLAYER_CAMERA_TARGET_SCREEN_Y = SCREEN_HEIGHT * 0.58
@@ -83,8 +82,20 @@ const FLOW_MODEL_NAMES = [
   FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX,
 ]
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.14.5"
+const GAME_VERSION = "v0.14.7"
 const WORLD_ZOOM = 0.9
+
+function predictFlowClimbHeuristicChallengeLabel(features) {
+  const lowUpwardProgress = features.heightDelta < 200
+
+  if (features.deathsDelta >= 2 && lowUpwardProgress) {
+    return FLOWCLIMB_CHALLENGE_LABELS.OVER
+  }
+  if (features.deathsDelta <= 1 && !lowUpwardProgress) {
+    return FLOWCLIMB_CHALLENGE_LABELS.UNDER
+  }
+  return FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
+}
 
 const BACKGROUND_HEIGHT_STOPS = [
   { height: 0, color: 0x141a25 },
@@ -1596,11 +1607,7 @@ class EndlessClimberScene extends Phaser.Scene {
       return null
     }
 
-    return predictFlowClimbChallengeLabelForMode(features, {
-      gameMode: this.gameMode,
-      selectedFlowModel: this.selectedFlowModel,
-      difficultyMax: DIFFICULTY_MAX,
-    })
+    return predictFlowClimbHeuristicChallengeLabel(features)
   }
 
   showScoreIndicator(text, color) {
