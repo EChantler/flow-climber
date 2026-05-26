@@ -82,7 +82,7 @@ const FLOW_MODEL_NAMES = [
   FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX,
 ]
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.14.7"
+const GAME_VERSION = "v0.14.8"
 const WORLD_ZOOM = 0.9
 
 function predictFlowClimbHeuristicChallengeLabel(features) {
@@ -252,9 +252,9 @@ class EndlessClimberScene extends Phaser.Scene {
     const notice = this.add.text(
       SCREEN_WIDTH / 2,
       210,
-      "Data collection notice\nThis study build records gameplay telemetry (mode, score, flags, deaths, height, difficulty and model decisions) using your participant token. Do not enter personal information during play.",
+      "\n\nData collection notice\nThis study build records gameplay telemetry (mode, score, flags, deaths, height, difficulty and model decisions) using your participant token.\nNo personally identifiable information is collected. Telemetry is used to evaluate and improve the adaptive difficulty system. By participating, you consent to this data collection.",
       {
-        fontSize: "18px",
+        fontSize: "14px",
         color: "#d6deea",
         align: "center",
         wordWrap: { width: 590 },
@@ -262,23 +262,28 @@ class EndlessClimberScene extends Phaser.Scene {
       },
     ).setOrigin(0.5)
 
-    const makeButton = (y, label, mode) => {
+    const makeButton = (y, label, mode, options = {}) => {
+      const enabled = options.enabled !== false
       const button = this.add.text(SCREEN_WIDTH / 2, y, label, {
         fontSize: "28px",
-        color: "#ffffff",
-        backgroundColor: "rgba(55, 83, 126, 0.82)",
+        color: enabled ? "#ffffff" : "#9ca8b8",
+        backgroundColor: enabled ? "rgba(55, 83, 126, 0.82)" : "rgba(55, 83, 126, 0.32)",
         padding: { x: 28, y: 14 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      button.on("pointerdown", () => this.startRun(mode))
-      button.on("pointerover", () => button.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
-      button.on("pointerout", () => button.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
+      }).setOrigin(0.5)
+      button.menuEnabled = enabled
+      if (enabled) {
+        button.setInteractive({ useHandCursor: true })
+        button.on("pointerdown", () => this.startRun(mode))
+        button.on("pointerover", () => button.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
+        button.on("pointerout", () => button.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
+      }
       return button
     }
 
     const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
-    const flowButton = makeButton(470, "Flow mode", FLOWCLIMB_MODES.FLOW)
+    const flowButton = makeButton(470, "Flow mode — coming soon", FLOWCLIMB_MODES.FLOW, { enabled: false })
     this.menuButtons = [trainButton, flowButton]
-    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via a randomly selected heuristic or promoted ONNX model.", {
+    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty is coming soon.", {
       fontSize: "16px",
       color: "#93a4bd",
       align: "center",
@@ -294,7 +299,7 @@ class EndlessClimberScene extends Phaser.Scene {
     }
     if (this.menuButtons) {
       this.menuButtons.forEach((button) => {
-        if (visible) {
+        if (visible && button.menuEnabled) {
           button.setInteractive({ useHandCursor: true })
         } else {
           button.disableInteractive()
