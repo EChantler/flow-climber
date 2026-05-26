@@ -42,7 +42,7 @@ function predictFlowClimbChallengeLabelForMode(features, options = {}) {
     return predictFlowClimbHeuristicChallengeLabel(features)
   }
 
-  if (options.selectedFlowModel === models.EDGE_LOGISTIC_REGRESSION) {
+  if (options.selectedFlowModel === models.PROMOTED_ONNX) {
     return predictFlowClimbLogisticRegressionChallengeLabel(features, options.difficultyMax)
   }
 

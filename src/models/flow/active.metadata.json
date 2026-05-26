@@ -16,7 +16,8 @@
   "metrics": {
     "accuracy": 1.0
   },
-  "model_name": "logistic_regression",
-  "onnx_file": "logistic_regression.onnx",
+  "model_name": "gaussian_nb",
+  "onnx_file": "active.onnx",
+  "promoted_model_name": "gaussian_nb",
   "target_column": "challenge_label"
 }

@@ -7,8 +7,8 @@ const FLOWCLIMB_ONNX_MODEL_STATUS = {
 
 class FlowClimbOnnxChallengeModel {
   constructor(options = {}) {
-    this.modelUrl = options.modelUrl || "./src/models/flow/logistic_regression.onnx"
-    this.metadataUrl = options.metadataUrl || "./src/models/flow/logistic_regression.metadata.json"
+    this.modelUrl = options.modelUrl || "./src/models/flow/active.onnx"
+    this.metadataUrl = options.metadataUrl || "./src/models/flow/active.metadata.json"
     this.wasmPaths = options.wasmPaths || "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/"
     this.session = null
     this.metadata = null

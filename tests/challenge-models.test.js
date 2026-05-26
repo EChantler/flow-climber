@@ -44,7 +44,7 @@ test('train mode uses heuristic model through shared challenge prediction entry 
   const models = loadChallengeModels()
   const label = models.predictFlowClimbChallengeLabelForMode(baseFeatures({ deathsDelta: 2 }), {
     gameMode: models.FLOWCLIMB_MODES.TRAIN,
-    selectedFlowModel: models.FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION,
+    selectedFlowModel: models.FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX,
     difficultyMax: 10,
   })
   assert.equal(label, models.FLOWCLIMB_CHALLENGE_LABELS.OVER)

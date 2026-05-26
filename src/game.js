@@ -78,8 +78,12 @@ const SPAWN_RANDOM_ATTEMPTS = 200
 const DIFFICULTY_UPDATE_INTERVAL_MS = 10000
 const FLOW_MODEL_UPDATE_INTERVAL_MS = 10000
 const FLOW_DIFFICULTY_STEP = 1
+const FLOW_MODEL_NAMES = [
+  FLOWCLIMB_FLOW_MODELS.HEURISTIC,
+  FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX,
+]
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.13.2"
+const GAME_VERSION = "v0.14.5"
 const WORLD_ZOOM = 0.9
 
 const BACKGROUND_HEIGHT_STOPS = [
@@ -263,7 +267,7 @@ class EndlessClimberScene extends Phaser.Scene {
     const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
     const flowButton = makeButton(470, "Flow mode", FLOWCLIMB_MODES.FLOW)
     this.menuButtons = [trainButton, flowButton]
-    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via LogisticRegression ONNX model.", {
+    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty via a randomly selected heuristic or promoted ONNX model.", {
       fontSize: "16px",
       color: "#93a4bd",
       align: "center",
@@ -323,7 +327,7 @@ class EndlessClimberScene extends Phaser.Scene {
 
   startRun(mode) {
     this.gameMode = mode
-    this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION : null
+    this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
     this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
     this.lastFlowModelUpdateTimestamp = Date.now()
     this.lastFlagsForModel = 0
@@ -1076,10 +1080,10 @@ class EndlessClimberScene extends Phaser.Scene {
     this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}`)
     this.modeText.setText(`Mode: ${this.gameMode === FLOWCLIMB_MODES.FLOW ? "Flow" : "Train"}`)
     this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
-    const modelStatus = this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION
+    const modelStatus = this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX
       ? `, onnx: ${this.flowOnnxModel.status}`
       : ""
-    this.modelText.setText(`Flow model: ${this.selectedFlowModel}${modelStatus} (${this.lastChallengeLabel})`)
+    this.modelText.setText(`Flow model: ${this.flowModelDisplayName()}${modelStatus} (${this.lastChallengeLabel})`)
     this.pauseOverlay.setVisible(this.isPaused)
     this.pauseOverlayHint.setVisible(this.isPaused)
     this.unstuckOverlay.setVisible(this.unstuckAvailable)
@@ -1504,11 +1508,20 @@ class EndlessClimberScene extends Phaser.Scene {
     })
   }
 
+  flowModelDisplayName() {
+    if (this.selectedFlowModel !== FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX) {
+      return this.selectedFlowModel || "none"
+    }
+    return this.flowOnnxModel?.metadata?.promoted_model_name
+      || this.flowOnnxModel?.metadata?.model_name
+      || "active_onnx"
+  }
+
   gameModeLabel() {
     if (this.gameMode !== FLOWCLIMB_MODES.FLOW) {
       return FLOWCLIMB_GAME_MODE_LABELS.TRAIN
     }
-    return this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION
+    return this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX
       ? FLOWCLIMB_GAME_MODE_LABELS.FLOW_ML
       : FLOWCLIMB_GAME_MODE_LABELS.FLOW_HEURISTIC
   }
@@ -1520,6 +1533,11 @@ class EndlessClimberScene extends Phaser.Scene {
       || hostname === "localhost"
       || hostname === "127.0.0.1"
       || hostname === "::1"
+      || hostname === "[::]"
+      || hostname === "0.0.0.0"
+      || hostname.startsWith("192.168.")
+      || hostname.startsWith("10.")
+      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
     return isLocal ? "local" : "deployed"
   }
 
@@ -1560,7 +1578,7 @@ class EndlessClimberScene extends Phaser.Scene {
 
   async predictChallengeLabelForMode(features) {
     if (this.gameMode === FLOWCLIMB_MODES.FLOW
-      && this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.EDGE_LOGISTIC_REGRESSION) {
+      && this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX) {
       if (!this.flowOnnxModelReady) {
         this.blockAccess("Flow model is not ready", "Please notify the developer and include this message.")
         return null

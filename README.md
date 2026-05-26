@@ -22,7 +22,7 @@ python3 -m http.server 8000
 
 ## Machine learning
 
-Training scaffolding lives in `ml/`. It uses a Conda environment, MLflow tracking, CSV exports in `ml/data/`, and ONNX model outputs in `ml/models/`. Promoted game-ready ONNX artifacts live in `src/models/flow/`.
+Training scaffolding lives in `ml/`. It uses a Conda environment, MLflow tracking, CSV exports in `ml/data/`, and ONNX model outputs in `ml/models/`. Promoted game-ready ONNX artifacts live in `src/models/flow/` as stable `active.*` aliases.
 
 See `ml/README.md`.
 

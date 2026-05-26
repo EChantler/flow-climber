@@ -41,10 +41,10 @@ This protects analysis by ensuring telemetry describes the completed window befo
 
 ## Challenge labels
 
-Train mode uses the same heuristic challenge-label model as Flow heuristic mode. Flow ML mode attempts to use the promoted LogisticRegression ONNX model in `src/models/flow/logistic_regression.onnx` through `src/onnx-challenge-model.js`.
+Train mode uses the same heuristic challenge-label model as Flow heuristic mode. Flow ML mode attempts to use the promoted ONNX model at `src/models/flow/active.onnx` through `src/onnx-challenge-model.js`. The active model identity is recorded in `src/models/flow/manifest.json`.
 
 If ONNX Runtime or the model asset is unavailable, the game shows a blocking error asking the player to notify the developer. Flow ML must not silently fall back to a different model because that would contaminate study-condition labels.
 
 Browsers block model fetches from `file://` pages, so local testing must use an HTTP static server such as `python3 -m http.server 8000`.
 
-Candidate trained models live under `ml/` and are exported as ONNX files with a shared manifest/metadata shape. LogisticRegression, LinearSVC, and GaussianNB candidates should use the same feature order so the game can swap between them without gameplay-code changes.
+Candidate trained models live under `ml/` and are exported as ONNX files with a shared manifest/metadata shape. LogisticRegression, LinearSVC, and GaussianNB candidates should use the same feature order. Use `python ml/scripts/promote_model.py --model <name>` to update the stable `active.*` browser artifacts without gameplay-code changes.

@@ -24,7 +24,7 @@ Expected top-level columns:
 - `game_version` — runtime game version, e.g. `v0.10.0`.
 - `data_schema_version` — telemetry schema version.
 - `session_id` — run/session UUID generated in the browser.
-- `deployment_context` — `local` or `deployed`.
+- `deployment_context` — `local` or `deployed`. Local includes `file://`, localhost, loopback, wildcard dev hosts such as `[::]`/`0.0.0.0`, and private LAN hostnames used for local testing.
 - `device_type` — `mobile` or `desktop`.
 - `game_mode` — `train`, `flow-heuristic`, or `flow-ML`.
 - `window_index` — zero-based telemetry window index within a run.

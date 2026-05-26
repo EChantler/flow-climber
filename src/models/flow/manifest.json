@@ -1,4 +1,7 @@
 {
+  "active_metadata_file": "active.metadata.json",
+  "active_model": "gaussian_nb",
+  "active_onnx_file": "active.onnx",
   "feature_columns": [
     "height_delta",
     "flags_delta",

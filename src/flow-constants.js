@@ -5,7 +5,7 @@ const FLOWCLIMB_MODES = {
 
 const FLOWCLIMB_FLOW_MODELS = {
   HEURISTIC: "heuristic",
-  EDGE_LOGISTIC_REGRESSION: "edge_logistic_regression",
+  PROMOTED_ONNX: "promoted_onnx",
 }
 
 const FLOWCLIMB_GAME_MODE_LABELS = {
