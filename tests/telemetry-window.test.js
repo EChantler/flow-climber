@@ -6,7 +6,7 @@ const vm = require('node:vm')
 function loadTelemetryWindow() {
   const context = { globalThis: {} }
   context.globalThis = context
-  vm.runInNewContext(fs.readFileSync('src/telemetry-window.js', 'utf8'), context, { filename: 'src/telemetry-window.js' })
+  vm.runInNewContext(fs.readFileSync('src/game-telemetry.js', 'utf8'), context, { filename: 'src/game-telemetry.js' })
   return context
 }
 

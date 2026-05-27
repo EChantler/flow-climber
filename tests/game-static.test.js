@@ -4,13 +4,17 @@ const fs = require('node:fs')
 const { execFileSync } = require('node:child_process')
 
 const gameSource = () => fs.readFileSync('src/game.js', 'utf8')
-const telemetryWindowSource = () => fs.readFileSync('src/telemetry-window.js', 'utf8')
+const telemetryWindowSource = () => fs.readFileSync('src/game-telemetry.js', 'utf8')
+const gameRulesSource = () => fs.readFileSync('src/game-rules.js', 'utf8')
+const uiSource = () => fs.readFileSync('src/ui.js', 'utf8')
+const inputSource = () => fs.readFileSync('src/input.js', 'utf8')
+const gameTelemetrySource = () => fs.readFileSync('src/game-telemetry.js', 'utf8')
 const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
 const onnxModelSource = () => fs.readFileSync('src/onnx-challenge-model.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['src/flow-constants.js', 'src/onnx-challenge-model.js', 'src/telemetry-window.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/game-rules.js', 'src/onnx-challenge-model.js', 'src/ui.js', 'src/input.js', 'src/game-telemetry.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -23,7 +27,7 @@ test('game version matches index cache-busting query params and package version'
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  for (const script of ['flow-constants.js', 'onnx-challenge-model.js', 'telemetry-window.js', 'telemetry.js', 'game.js']) {
+  for (const script of ['flow-constants.js', 'game-rules.js', 'onnx-challenge-model.js', 'telemetry.js', 'ui.js', 'input.js', 'game-telemetry.js', 'game.js']) {
     assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
   }
   assert.equal(packageJson.version, cacheVersion)
@@ -32,7 +36,7 @@ test('game version matches index cache-busting query params and package version'
 test('repeated telemetry values are configured as top-level columns', () => {
   const game = gameSource()
   const telemetry = fs.readFileSync('src/telemetry.js', 'utf8')
-  assert.match(game, /gameVersion: GAME_VERSION/)
+  assert.match(gameTelemetrySource(), /gameVersion: GAME_VERSION/)
   for (const column of [
     'game_version',
     'data_schema_version',
@@ -55,33 +59,35 @@ test('repeated telemetry values are configured as top-level columns', () => {
 test('data schema version is tracked as a top-level telemetry column', () => {
   const game = gameSource()
   assert.match(game, /const TELEMETRY_SCHEMA_VERSION = 6/)
-  assert.match(game, /telemetrySchemaVersion: TELEMETRY_SCHEMA_VERSION/)
+  assert.match(gameTelemetrySource(), /telemetrySchemaVersion: TELEMETRY_SCHEMA_VERSION/)
   assert.match(telemetryWindowSource(), /data_schema_version: input\.telemetrySchemaVersion/)
   assert.doesNotMatch(game, /(^|[^a-zA-Z_])schema_version:/)
 })
 
 test('only 10-second telemetry window events are logged from gameplay', () => {
   const game = gameSource()
-  const eventTypes = [...game.matchAll(/this\.logTelemetry\("([^"]+)"/g)].map((match) => match[1])
+  const eventTypes = [...gameTelemetrySource().matchAll(/this\.logTelemetry\("([^"]+)"/g)].map((match) => match[1])
   assert.deepEqual(eventTypes, ['telemetry_window'])
-  assert.match(game, /const DIFFICULTY_UPDATE_INTERVAL_MS = 10000/)
+  assert.match(gameRulesSource(), /const DIFFICULTY_UPDATE_INTERVAL_MS = 10000/)
   assert.match(game, /windowEndTimestamp = this\.lastTelemetryWindowTimestamp \+ DIFFICULTY_UPDATE_INTERVAL_MS/)
   assert.match(telemetryWindowSource(), /window_duration_ms: input\.windowEndTimestamp - input\.windowTelemetry\.windowStartTimestamp/)
 })
 
 test('train mode uses shared heuristic challenge label for telemetry', () => {
   const game = gameSource()
+  const gameRules = gameRulesSource()
   assert.match(game, /const predictedLabel = await this\.predictChallengeLabelForMode\(latestTelemetry\)/)
-  assert.match(game, /function predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.match(gameRules, /function predictFlowClimbHeuristicChallengeLabel\(features\)/)
   assert.match(game, /return predictFlowClimbHeuristicChallengeLabel\(features\)/)
   assert.doesNotMatch(game, /predictFlowClimbChallengeLabelForMode\(/)
   assert.doesNotMatch(game, /predictFlowClimbLogisticRegressionChallengeLabel/)
+  assert.doesNotMatch(gameRules, /predictFlowClimbLogisticRegressionChallengeLabel/)
   assert.match(telemetryWindowSource(), /challenge_label: input\.predictedLabel/)
 })
 
 test('10-second window collects telemetry, sends it, then adjusts difficulty', () => {
   const game = gameSource()
-  const body = game.match(/  async updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  logTelemetryWindow/)?.[1]
+  const body = game.match(/  async updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  flowModelDisplayName/)?.[1]
   assert.ok(body, 'updateDifficultyFromElapsedTime body should be found')
 
   const collectIndex = body.indexOf('const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)')
@@ -137,24 +143,24 @@ test('telemetry window payload contains the study fields', () => {
 })
 
 test('deployment context is tracked as a top-level local or deployed column', () => {
-  const game = gameSource()
+  const gameTelemetry = gameTelemetrySource()
   const telemetryWindow = telemetryWindowSource()
-  assert.match(game, /deploymentContext: this\.currentDeploymentContext\(\)/)
-  assert.match(game, /currentDeploymentContext\(\)/)
-  assert.match(game, /hostname === "\[::\]"/)
-  assert.match(game, /hostname === "0\.0\.0\.0"/)
-  assert.match(game, /hostname\.startsWith\("192\.168\."\)/)
-  assert.match(game, /return isLocal \? "local" : "deployed"/)
+  assert.match(gameTelemetry, /deploymentContext: this\.currentDeploymentContext\(\)/)
+  assert.match(gameTelemetry, /currentDeploymentContext\(\)/)
+  assert.match(gameTelemetry, /hostname === "\[::\]"/)
+  assert.match(gameTelemetry, /hostname === "0\.0\.0\.0"/)
+  assert.match(gameTelemetry, /hostname\.startsWith\("192\.168\."\)/)
+  assert.match(gameTelemetry, /return isLocal \? "local" : "deployed"/)
   assert.match(telemetryWindow, /deployment_context: input\.deploymentContext/)
 })
 
 test('device type is tracked as a top-level mobile or desktop column', () => {
-  const game = gameSource()
+  const gameTelemetry = gameTelemetrySource()
   const telemetryWindow = telemetryWindowSource()
-  assert.match(game, /deviceType: this\.currentDeviceType\(\)/)
+  assert.match(gameTelemetry, /deviceType: this\.currentDeviceType\(\)/)
   assert.match(telemetryWindow, /device_type: input\.deviceType/)
-  assert.match(game, /currentDeviceType\(\)/)
-  assert.match(game, /return \(coarsePointer \|\| \(touchCapable && narrowViewport\)\) \? "mobile" : "desktop"/)
+  assert.match(gameTelemetry, /currentDeviceType\(\)/)
+  assert.match(gameTelemetry, /return \(coarsePointer \|\| \(touchCapable && narrowViewport\)\) \? "mobile" : "desktop"/)
   assert.doesNotMatch(telemetryWindow, /screen_orientation:/)
 })
 
@@ -162,7 +168,7 @@ test('skipped platforms are rewarded and tracked without missed-platform penalti
   const game = gameSource()
   const telemetryWindow = telemetryWindowSource()
   assert.doesNotMatch(game, /MISSED_FLAG_PENALTY/)
-  assert.match(game, /const SKIPPED_PLATFORM_REWARD = 2/)
+  assert.match(gameRulesSource(), /const SKIPPED_PLATFORM_REWARD = 2/)
   assert.match(game, /this\.skipReward \+= reward/)
   assert.match(game, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
   assert.match(game, /this\.incrementWindowCounter\("skipReward", reward\)/)
@@ -184,25 +190,32 @@ test('failed jumps are tracked by specific jump key', () => {
 
 test('telemetry window shows a subtle short upload indicator', () => {
   const game = gameSource()
+  const ui = uiSource()
   assert.match(game, /this\.uploadIcon = this\.add\.text\(14, SCREEN_HEIGHT - 28, "↥"/)
-  assert.match(game, /this\.flashUploadIcon\(\)\n    this\.logTelemetry\("telemetry_window"/)
-  assert.match(game, /this\.time\.delayedCall\(100/)
+  assert.match(gameTelemetrySource(), /this\.flashUploadIcon\(\)\n    this\.logTelemetry\("telemetry_window"/)
+  assert.match(ui, /this\.time\.delayedCall\(100/)
 })
 
 test('menu modes and model display behavior are wired', () => {
   const game = gameSource()
   const constants = constantsSource()
-  assert.match(game, /makeButton\(390, "Train mode", FLOWCLIMB_MODES\.TRAIN\)/)
-  assert.match(game, /makeButton\(470, "Flow mode — coming soon", FLOWCLIMB_MODES\.FLOW, \{ enabled: false \}\)/)
-  assert.match(game, /if \(visible && button\.menuEnabled\)/)
-  assert.match(game, /FLOW_MODEL_NAMES = \[/)
+  const ui = uiSource()
+  assert.match(ui, /makeButton\(390, "Train mode", FLOWCLIMB_MODES\.TRAIN\)/)
+  assert.match(ui, /makeButton\(470, "Flow mode — coming soon", FLOWCLIMB_MODES\.FLOW, \{ enabled: false \}\)/)
+  assert.match(ui, /if \(visible && button\.menuEnabled\)/)
+  assert.match(gameRulesSource(), /FLOW_MODEL_NAMES = \[/)
   assert.match(game, /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? Phaser\.Utils\.Array\.GetRandom\(FLOW_MODEL_NAMES\) : null/)
   assert.match(constants, /PROMOTED_ONNX: "promoted_onnx"/)
   assert.match(game, /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
   assert.match(game, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
   assert.match(game, /promoted_model_name/)
-  assert.match(game, /Flow: adaptive difficulty is coming soon\./)
+  assert.match(ui, /Flow: adaptive difficulty is coming soon\./)
   assert.match(game, /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
+})
+
+test('access rejection clears stored participant token before blocking', () => {
+  const game = gameSource()
+  assert.match(game, /if \(!accepted \|\| this\.accessBlocked\) \{\n        if \(!this\.accessBlocked\) \{\n          this\.clearStoredParticipantToken\(\)\n          this\.blockAccess\("Access token rejected", "Refresh and enter a valid access token\."\)/)
 })
 
 test('flow ML model loads active ONNX model with blocking failure behavior', () => {

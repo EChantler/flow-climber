@@ -5,11 +5,14 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 ## File layout
 
 - `index.html` — page shell, touch controls, telemetry config, and script loading.
-- `src/game.js` — main Phaser scene, game loop, UI, movement/collision, difficulty updates, and orchestration.
+- `src/game.js` — main Phaser scene, game loop, movement/collision, difficulty updates, and orchestration.
+- `src/game-rules.js` — gameplay constants, tuning values, background stops, Flow model candidates, and heuristic challenge-label helper.
+- `src/ui.js` — scene UI/menu/HUD helper methods mixed into the Phaser scene.
+- `src/input.js` — keyboard/touch input helper methods mixed into the Phaser scene.
+- `src/game-telemetry.js` — scene telemetry/config/device-context helper methods plus telemetry-window payload builder.
 - `src/flow-constants.js` — shared study/schema labels for modes, models, and challenge labels.
 - `src/onnx-challenge-model.js` — browser ONNX Runtime wrapper for trained challenge-label models.
 - `src/models/flow/` — promoted ONNX model artifacts used by the deployed game.
-- `src/telemetry-window.js` — pure helper for building 10-second telemetry payloads.
 - `src/telemetry.js` — Supabase telemetry buffer/flush manager.
 - `src/spawn-worker.js` — worker used to pre-generate platforms.
 - `tests/` — Node test suite using `node --test`.
@@ -20,10 +23,13 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 `index.html` must load scripts in dependency order:
 
 1. `src/flow-constants.js`
-2. `src/onnx-challenge-model.js`
-3. `src/telemetry-window.js`
+2. `src/game-rules.js`
+3. `src/onnx-challenge-model.js`
 4. `src/telemetry.js`
-5. `src/game.js`
+5. `src/ui.js`
+6. `src/input.js`
+7. `src/game-telemetry.js`
+8. `src/game.js`
 
 `src/game.js` depends on the globals exported by the earlier scripts.
 

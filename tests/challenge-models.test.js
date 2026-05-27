@@ -4,15 +4,10 @@ const fs = require('node:fs')
 const vm = require('node:vm')
 
 function loadGameHelpers() {
-  const game = fs.readFileSync('src/game.js', 'utf8')
-  const helperSource = game.match(/function predictFlowClimbHeuristicChallengeLabel[\s\S]*?\n}\n\nconst BACKGROUND_HEIGHT_STOPS/)?.[0]
-    ?.replace(/\n\nconst BACKGROUND_HEIGHT_STOPS$/, '')
-  assert.ok(helperSource, 'heuristic helper should be found in game.js')
-
-  const context = { globalThis: {} }
+  const context = { globalThis: {}, Math }
   context.globalThis = context
   vm.runInNewContext(fs.readFileSync('src/flow-constants.js', 'utf8'), context, { filename: 'src/flow-constants.js' })
-  vm.runInNewContext(helperSource, context, { filename: 'src/game.js#heuristic-helper' })
+  vm.runInNewContext(fs.readFileSync('src/game-rules.js', 'utf8'), context, { filename: 'src/game-rules.js' })
   return context
 }
 
