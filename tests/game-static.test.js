@@ -9,12 +9,13 @@ const gameRulesSource = () => fs.readFileSync('src/game-rules.js', 'utf8')
 const uiSource = () => fs.readFileSync('src/ui.js', 'utf8')
 const inputSource = () => fs.readFileSync('src/input.js', 'utf8')
 const gameTelemetrySource = () => fs.readFileSync('src/game-telemetry.js', 'utf8')
+const platformsSource = () => fs.readFileSync('src/platforms.js', 'utf8')
 const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
 const onnxModelSource = () => fs.readFileSync('src/onnx-challenge-model.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['src/flow-constants.js', 'src/game-rules.js', 'src/onnx-challenge-model.js', 'src/ui.js', 'src/input.js', 'src/game-telemetry.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/game-rules.js', 'src/onnx-challenge-model.js', 'src/ui.js', 'src/input.js', 'src/game-telemetry.js', 'src/platforms.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -27,7 +28,7 @@ test('game version matches index cache-busting query params and package version'
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  for (const script of ['flow-constants.js', 'game-rules.js', 'onnx-challenge-model.js', 'telemetry.js', 'ui.js', 'input.js', 'game-telemetry.js', 'game.js']) {
+  for (const script of ['flow-constants.js', 'game-rules.js', 'onnx-challenge-model.js', 'telemetry.js', 'ui.js', 'input.js', 'game-telemetry.js', 'platforms.js', 'game.js']) {
     assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
   }
   assert.equal(packageJson.version, cacheVersion)
@@ -169,12 +170,13 @@ test('skipped platforms are rewarded and tracked without missed-platform penalti
   const telemetryWindow = telemetryWindowSource()
   assert.doesNotMatch(game, /MISSED_FLAG_PENALTY/)
   assert.match(gameRulesSource(), /const SKIPPED_PLATFORM_REWARD = 2/)
-  assert.match(game, /this\.skipReward \+= reward/)
-  assert.match(game, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
-  assert.match(game, /this\.incrementWindowCounter\("skipReward", reward\)/)
+  const platforms = platformsSource()
+  assert.match(platforms, /this\.skipReward \+= reward/)
+  assert.match(platforms, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
+  assert.match(platforms, /this\.incrementWindowCounter\("skipReward", reward\)/)
   assert.match(game, /this\.score = this\.flagsCollected \+ this\.skipReward - this\.deathPenalty/)
   assert.match(telemetryWindow, /skipped_platforms: input\.windowTelemetry\.skippedPlatforms/)
-  assert.match(game, /showScoreIndicator\(`\+\$\{reward\} skip`/)
+  assert.match(platforms, /showScoreIndicator\(`\+\$\{reward\} skip`/)
 })
 
 test('failed jumps are tracked by specific jump key', () => {

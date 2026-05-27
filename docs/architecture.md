@@ -10,6 +10,7 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 - `src/ui.js` — scene UI/menu/HUD helper methods mixed into the Phaser scene.
 - `src/input.js` — keyboard/touch input helper methods mixed into the Phaser scene.
 - `src/game-telemetry.js` — scene telemetry/config/device-context helper methods plus telemetry-window payload builder.
+- `src/platforms.js` — platform generation, reachability, movement, objective, and spawn-worker helper methods mixed into the Phaser scene.
 - `src/flow-constants.js` — shared study/schema labels for modes, models, and challenge labels.
 - `src/onnx-challenge-model.js` — browser ONNX Runtime wrapper for trained challenge-label models.
 - `src/models/flow/` — promoted ONNX model artifacts used by the deployed game.
@@ -29,7 +30,8 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 5. `src/ui.js`
 6. `src/input.js`
 7. `src/game-telemetry.js`
-8. `src/game.js`
+8. `src/platforms.js`
+9. `src/game.js`
 
 `src/game.js` depends on the globals exported by the earlier scripts.
 
