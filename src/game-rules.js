@@ -112,3 +112,85 @@ const BACKGROUND_HEIGHT_STOPS = [
   { height: 13000, color: 0x5d2f64 },
   { height: 15000, color: 0x6b2f52 },
 ]
+
+const FLOWCLIMB_DIFFICULTY_METHODS = {
+  async updateDifficultyFromElapsedTime() {
+    if (this.difficultyUpdateInProgress) {
+      return
+    }
+
+    const now = Date.now()
+    const telemetryElapsedMs = now - this.lastTelemetryWindowTimestamp
+    if (telemetryElapsedMs < DIFFICULTY_UPDATE_INTERVAL_MS) {
+      return
+    }
+
+    this.difficultyUpdateInProgress = true
+    if (telemetryElapsedMs > DIFFICULTY_UPDATE_INTERVAL_MS * 2) {
+      this.lastTelemetryWindowTimestamp = now
+      this.resetWindowTelemetryCounters(now, this.heightClimbed)
+      this.difficultyUpdateInProgress = false
+      return
+    }
+
+    const windowEndTimestamp = this.lastTelemetryWindowTimestamp + DIFFICULTY_UPDATE_INTERVAL_MS
+    const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)
+    const previousDifficulty = this.difficultyLevel
+    const predictedLabel = await this.predictChallengeLabelForMode(latestTelemetry)
+    if (!predictedLabel || this.accessBlocked) {
+      this.difficultyUpdateInProgress = false
+      return
+    }
+
+    this.logTelemetryWindow(latestTelemetry, previousDifficulty, predictedLabel, windowEndTimestamp)
+
+    if (this.gameMode === FLOWCLIMB_MODES.FLOW) {
+      if (predictedLabel === FLOWCLIMB_CHALLENGE_LABELS.UNDER) {
+        this.difficultyLevel = Math.min(DIFFICULTY_MAX, this.difficultyLevel + FLOW_DIFFICULTY_STEP)
+      } else if (predictedLabel === FLOWCLIMB_CHALLENGE_LABELS.OVER) {
+        this.difficultyLevel = Math.max(DIFFICULTY_MIN, this.difficultyLevel - FLOW_DIFFICULTY_STEP)
+      }
+      this.lastChallengeLabel = predictedLabel
+      this.lastFlowModelUpdateTimestamp = windowEndTimestamp
+      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    } else {
+      const elapsedMs = windowEndTimestamp - this.runStartTimestamp
+      const timedDifficulty = DIFFICULTY_MIN + Math.floor(elapsedMs / DIFFICULTY_UPDATE_INTERVAL_MS)
+      this.difficultyLevel = Phaser.Math.Clamp(timedDifficulty, DIFFICULTY_MIN, DIFFICULTY_MAX)
+      this.maxDifficultyAchieved = Math.max(this.maxDifficultyAchieved, this.difficultyLevel)
+    }
+
+    this.lastTelemetryWindowTimestamp = windowEndTimestamp
+    this.lastFlagsForModel = this.flagsCollected
+    this.lastDeathsForModel = this.deathCount
+    this.lastHeightForModel = this.heightClimbed
+    this.telemetryWindowIndex += 1
+    this.resetWindowTelemetryCounters(windowEndTimestamp, this.heightClimbed)
+    this.difficultyUpdateInProgress = false
+  },
+
+  async predictChallengeLabelForMode(features) {
+    if (this.gameMode === FLOWCLIMB_MODES.FLOW
+      && this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX) {
+      if (!this.flowOnnxModelReady) {
+        this.blockAccess("Flow model is not ready", "Please notify the developer and include this message.")
+        return null
+      }
+
+      try {
+        const onnxLabel = await this.flowOnnxModel.predict(features)
+        if (onnxLabel) {
+          return onnxLabel
+        }
+      } catch (error) {
+        console.error("FlowClimb ONNX prediction failed:", error)
+      }
+      this.blockAccess("Flow model prediction failed", "Please notify the developer and include this message.")
+      return null
+    }
+
+    return predictFlowClimbHeuristicChallengeLabel(features)
+  },
+}
+
+globalThis.FLOWCLIMB_DIFFICULTY_METHODS = FLOWCLIMB_DIFFICULTY_METHODS

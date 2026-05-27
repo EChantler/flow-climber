@@ -69,7 +69,7 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
     if (!this.telemetry.enabled) {
       return
     }
-  
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.telemetry.stop()
       void this.telemetry.flush()
@@ -96,7 +96,7 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
     const participantToken = (supabaseUrl && supabaseAnonKey)
       ? this.resolveParticipantToken(globalConfig)
       : ""
-  
+
     return {
       supabaseUrl,
       supabaseAnonKey,
@@ -117,7 +117,7 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
       this.telemetryParticipantTokenSource = "localStorage"
       return existingToken.trim().toLowerCase()
     }
-  
+
     const token = window.prompt("Enter participant token")
     if (token) {
       const trimmedToken = token.trim().toLowerCase()
@@ -126,7 +126,7 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
       this.telemetryParticipantTokenSource = "prompt"
       return trimmedToken
     }
-  
+
     this.telemetryParticipantTokenStorageKey = storageKey
     this.telemetryParticipantTokenSource = "missing"
     return ""
@@ -136,11 +136,11 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
     if (!token) {
       return "<empty>"
     }
-  
+
     if (token.length <= 8) {
       return `${token.slice(0, 2)}…${token.slice(-2)}`
     }
-  
+
     return `${token.slice(0, 4)}…${token.slice(-4)}`
   },
 
@@ -148,11 +148,11 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
     if (!this.telemetry || !this.telemetry.enabled) {
       return
     }
-  
+
     if (type !== "telemetry_window") {
       return
     }
-  
+
     this.telemetry.log(type, value, {
       ...extra,
       height_climbed: this.heightClimbed,
@@ -216,6 +216,86 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
     const narrowViewport = (window.innerWidth || SCREEN_WIDTH) < 900
     return (coarsePointer || (touchCapable && narrowViewport)) ? "mobile" : "desktop"
   },
+
+  incrementWindowCounter(name, amount = 1) {
+    if (this.windowTelemetry && Object.prototype.hasOwnProperty.call(this.windowTelemetry, name)) {
+      this.windowTelemetry[name] += amount
+    }
+  },
+
+  resetWindowTelemetryCounters(windowStartTimestamp = Date.now(), windowStartingHeight = this.heightClimbed || 0) {
+    this.windowTelemetry = {
+      windowStartTimestamp,
+      windowStartingHeight,
+      jumpLandingsOnNewPlatforms: 0,
+      newPlatformsReached: 0,
+      deaths: 0,
+      horizontalMovement: 0,
+      leftKeyPresses: 0,
+      rightKeyPresses: 0,
+      jumpKeyPresses: 0,
+      skippedPlatforms: 0,
+      skipReward: 0,
+      failedJumpAttempts: 0,
+      failedJumpCountsByJump: {},
+    }
+  },
+
+  async validateParticipantAccess(participantToken) {
+    if (!this.telemetry || !this.telemetry.enabled || !this.telemetry.supabase) {
+      return false
+    }
+
+    const { data, error } = await this.telemetry.supabase.rpc("is_valid_participant_token", { token: participantToken })
+    if (error) {
+      console.error("Access validation RPC failed:", error.message)
+      return false
+    }
+    return data === true
+  },
+
+  async flushTelemetry() {
+    if (!this.telemetry || !this.telemetry.enabled) {
+      return false
+    }
+
+    return this.telemetry.flush()
+  },
+
+  gameModeLabel() {
+    if (this.gameMode !== FLOWCLIMB_MODES.FLOW) {
+      return FLOWCLIMB_GAME_MODE_LABELS.TRAIN
+    }
+    return this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX
+      ? FLOWCLIMB_GAME_MODE_LABELS.FLOW_ML
+      : FLOWCLIMB_GAME_MODE_LABELS.FLOW_HEURISTIC
+  },
+
+  getLatestTelemetryWindow(now) {
+    return this.challengeFeatures(now)
+  },
+
+  challengeFeatures(now) {
+    const elapsedSeconds = Math.max(1, (now - this.runStartTimestamp) / 1000)
+    const intervalSeconds = DIFFICULTY_UPDATE_INTERVAL_MS / 1000
+    const flagsDelta = this.flagsCollected - this.lastFlagsForModel
+    const deathsDelta = this.windowTelemetry.deaths
+    const heightDelta = Math.max(0, this.heightClimbed - this.windowTelemetry.windowStartingHeight)
+    return {
+      elapsedSeconds,
+      intervalSeconds,
+      flagsDelta,
+      deathsDelta,
+      heightDelta,
+      heightPerMinute: heightDelta / intervalSeconds * 60,
+      flagsPerMinute: this.flagsCollected / elapsedSeconds * 60,
+      intervalFlagsPerMinute: flagsDelta / intervalSeconds * 60,
+      deathsPerMinute: this.deathCount / elapsedSeconds * 60,
+      intervalDeathsPerMinute: deathsDelta / intervalSeconds * 60,
+      secondsSinceFlag: (now - this.lastFlagTimestamp) / 1000,
+      difficulty: this.difficultyLevel,
+    }
+  }
 }
 
 globalThis.FLOWCLIMB_TELEMETRY_METHODS = FLOWCLIMB_TELEMETRY_METHODS

@@ -10,12 +10,14 @@ const uiSource = () => fs.readFileSync('src/ui.js', 'utf8')
 const inputSource = () => fs.readFileSync('src/input.js', 'utf8')
 const gameTelemetrySource = () => fs.readFileSync('src/game-telemetry.js', 'utf8')
 const platformsSource = () => fs.readFileSync('src/platforms.js', 'utf8')
+const renderingSource = () => fs.readFileSync('src/rendering.js', 'utf8')
+const runStateSource = () => fs.readFileSync('src/run-state.js', 'utf8')
 const constantsSource = () => fs.readFileSync('src/flow-constants.js', 'utf8')
 const onnxModelSource = () => fs.readFileSync('src/onnx-challenge-model.js', 'utf8')
 const indexSource = () => fs.readFileSync('index.html', 'utf8')
 
 test('browser scripts are syntactically valid JavaScript', () => {
-  for (const file of ['src/flow-constants.js', 'src/game-rules.js', 'src/onnx-challenge-model.js', 'src/ui.js', 'src/input.js', 'src/game-telemetry.js', 'src/platforms.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
+  for (const file of ['src/flow-constants.js', 'src/game-rules.js', 'src/onnx-challenge-model.js', 'src/ui.js', 'src/input.js', 'src/game-telemetry.js', 'src/platforms.js', 'src/rendering.js', 'src/run-state.js', 'src/game.js', 'src/telemetry.js', 'src/spawn-worker.js']) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
   }
 })
@@ -28,7 +30,7 @@ test('game version matches index cache-busting query params and package version'
   const version = game.match(/const GAME_VERSION = "([^"]+)"/)?.[1]
   assert.ok(version, 'GAME_VERSION should be declared')
   const cacheVersion = version.replace(/^v/, '')
-  for (const script of ['flow-constants.js', 'game-rules.js', 'onnx-challenge-model.js', 'telemetry.js', 'ui.js', 'input.js', 'game-telemetry.js', 'platforms.js', 'game.js']) {
+  for (const script of ['flow-constants.js', 'game-rules.js', 'onnx-challenge-model.js', 'telemetry.js', 'ui.js', 'input.js', 'game-telemetry.js', 'platforms.js', 'rendering.js', 'run-state.js', 'game.js']) {
     assert.match(index, new RegExp(`src/${script}\\?v=${cacheVersion}`))
   }
   assert.equal(packageJson.version, cacheVersion)
@@ -66,20 +68,20 @@ test('data schema version is tracked as a top-level telemetry column', () => {
 })
 
 test('only 10-second telemetry window events are logged from gameplay', () => {
-  const game = gameSource()
+  const gameRules = gameRulesSource()
   const eventTypes = [...gameTelemetrySource().matchAll(/this\.logTelemetry\("([^"]+)"/g)].map((match) => match[1])
   assert.deepEqual(eventTypes, ['telemetry_window'])
   assert.match(gameRulesSource(), /const DIFFICULTY_UPDATE_INTERVAL_MS = 10000/)
-  assert.match(game, /windowEndTimestamp = this\.lastTelemetryWindowTimestamp \+ DIFFICULTY_UPDATE_INTERVAL_MS/)
+  assert.match(gameRules, /windowEndTimestamp = this\.lastTelemetryWindowTimestamp \+ DIFFICULTY_UPDATE_INTERVAL_MS/)
   assert.match(telemetryWindowSource(), /window_duration_ms: input\.windowEndTimestamp - input\.windowTelemetry\.windowStartTimestamp/)
 })
 
 test('train mode uses shared heuristic challenge label for telemetry', () => {
   const game = gameSource()
   const gameRules = gameRulesSource()
-  assert.match(game, /const predictedLabel = await this\.predictChallengeLabelForMode\(latestTelemetry\)/)
+  assert.match(gameRules, /const predictedLabel = await this\.predictChallengeLabelForMode\(latestTelemetry\)/)
   assert.match(gameRules, /function predictFlowClimbHeuristicChallengeLabel\(features\)/)
-  assert.match(game, /return predictFlowClimbHeuristicChallengeLabel\(features\)/)
+  assert.match(gameRules, /return predictFlowClimbHeuristicChallengeLabel\(features\)/)
   assert.doesNotMatch(game, /predictFlowClimbChallengeLabelForMode\(/)
   assert.doesNotMatch(game, /predictFlowClimbLogisticRegressionChallengeLabel/)
   assert.doesNotMatch(gameRules, /predictFlowClimbLogisticRegressionChallengeLabel/)
@@ -88,7 +90,7 @@ test('train mode uses shared heuristic challenge label for telemetry', () => {
 
 test('10-second window collects telemetry, sends it, then adjusts difficulty', () => {
   const game = gameSource()
-  const body = game.match(/  async updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \}\n\n  flowModelDisplayName/)?.[1]
+  const body = gameRulesSource().match(/  async updateDifficultyFromElapsedTime\(\) \{([\s\S]*?)\n  \},\n\n  async predictChallengeLabelForMode/)?.[1]
   assert.ok(body, 'updateDifficultyFromElapsedTime body should be found')
 
   const collectIndex = body.indexOf('const latestTelemetry = this.getLatestTelemetryWindow(windowEndTimestamp)')
@@ -174,18 +176,19 @@ test('skipped platforms are rewarded and tracked without missed-platform penalti
   assert.match(platforms, /this\.skipReward \+= reward/)
   assert.match(platforms, /this\.incrementWindowCounter\("skippedPlatforms", skippedCount\)/)
   assert.match(platforms, /this\.incrementWindowCounter\("skipReward", reward\)/)
-  assert.match(game, /this\.score = this\.flagsCollected \+ this\.skipReward - this\.deathPenalty/)
+  assert.match(runStateSource(), /this\.score = this\.flagsCollected \+ this\.skipReward - this\.deathPenalty/)
   assert.match(telemetryWindow, /skipped_platforms: input\.windowTelemetry\.skippedPlatforms/)
   assert.match(platforms, /showScoreIndicator\(`\+\$\{reward\} skip`/)
 })
 
 test('failed jumps are tracked by specific jump key', () => {
   const game = gameSource()
+  const gameTelemetry = gameTelemetrySource()
   const telemetryWindow = telemetryWindowSource()
-  assert.match(game, /failedJumpAttempts: 0/)
-  assert.match(game, /failedJumpCountsByJump: \{\}/)
+  assert.match(gameTelemetry, /failedJumpAttempts: 0/)
+  assert.match(gameTelemetry, /failedJumpCountsByJump: \{\}/)
   assert.match(game, /recordFailedJumpAttempt\(\)/)
-  assert.match(game, /const jumpKey = `\$\{fromId\}->\$\{toId\}`/)
+  assert.match(runStateSource(), /const jumpKey = `\$\{fromId\}->\$\{toId\}`/)
   assert.match(telemetryWindow, /repeated_failed_jump_attempts: repeatedFailedJumpAttempts/)
   assert.match(telemetryWindow, /distinct_failed_jumps: Object\.keys\(failedJumpCounts\)\.length/)
 })
@@ -202,17 +205,18 @@ test('menu modes and model display behavior are wired', () => {
   const game = gameSource()
   const constants = constantsSource()
   const ui = uiSource()
+  const rendering = renderingSource()
   assert.match(ui, /makeButton\(390, "Train mode", FLOWCLIMB_MODES\.TRAIN\)/)
   assert.match(ui, /makeButton\(470, "Flow mode — coming soon", FLOWCLIMB_MODES\.FLOW, \{ enabled: false \}\)/)
   assert.match(ui, /if \(visible && button\.menuEnabled\)/)
   assert.match(gameRulesSource(), /FLOW_MODEL_NAMES = \[/)
-  assert.match(game, /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? Phaser\.Utils\.Array\.GetRandom\(FLOW_MODEL_NAMES\) : null/)
+  assert.match(runStateSource(), /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? Phaser\.Utils\.Array\.GetRandom\(FLOW_MODEL_NAMES\) : null/)
   assert.match(constants, /PROMOTED_ONNX: "promoted_onnx"/)
-  assert.match(game, /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
-  assert.match(game, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
-  assert.match(game, /promoted_model_name/)
+  assert.match(runStateSource(), /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
+  assert.match(rendering, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
+  assert.match(ui, /promoted_model_name/)
   assert.match(ui, /Flow: adaptive difficulty is coming soon\./)
-  assert.match(game, /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
+  assert.match(gameTelemetrySource(), /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
 })
 
 test('access rejection clears stored participant token before blocking', () => {
@@ -229,10 +233,10 @@ test('flow ML model loads active ONNX model with blocking failure behavior', () 
   assert.match(onnxModel, /active\.metadata\.json/)
   assert.match(onnxModel, /feature_columns\.map/)
   assert.match(game, /this\.flowOnnxModel = createFlowClimbOnnxChallengeModel\(\)/)
-  assert.match(game, /const onnxLabel = await this\.flowOnnxModel\.predict\(features\)/)
+  assert.match(gameRulesSource(), /const onnxLabel = await this\.flowOnnxModel\.predict\(features\)/)
   assert.match(game, /ONNX models cannot load from file:\/\//)
   assert.match(game, /this\.blockAccess\("Flow model failed to load", hint\)/)
-  assert.match(game, /this\.blockAccess\("Flow model prediction failed", "Please notify the developer and include this message\."\)/)
+  assert.match(gameRulesSource(), /this\.blockAccess\("Flow model prediction failed", "Please notify the developer and include this message\."\)/)
   assert.doesNotMatch(game, /falling back to JS model/)
   assert.ok(fs.existsSync('src/models/flow/active.onnx'))
   assert.ok(fs.existsSync('src/models/flow/active.metadata.json'))

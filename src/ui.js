@@ -5,7 +5,7 @@ const FLOWCLIMB_UI_METHODS = {
       color: "#ffffff",
       fontStyle: "bold",
     }).setOrigin(0.5)
-  
+
     const notice = this.add.text(
       SCREEN_WIDTH / 2,
       210,
@@ -18,7 +18,7 @@ const FLOWCLIMB_UI_METHODS = {
         lineSpacing: 8,
       },
     ).setOrigin(0.5)
-  
+
     const makeButton = (y, label, mode, options = {}) => {
       const enabled = options.enabled !== false
       const button = this.add.text(SCREEN_WIDTH / 2, y, label, {
@@ -36,7 +36,7 @@ const FLOWCLIMB_UI_METHODS = {
       }
       return button
     }
-  
+
     const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
     const flowButton = makeButton(470, "Flow mode — coming soon", FLOWCLIMB_MODES.FLOW, { enabled: false })
     this.menuButtons = [trainButton, flowButton]
@@ -46,7 +46,7 @@ const FLOWCLIMB_UI_METHODS = {
       align: "center",
       wordWrap: { width: 560 },
     }).setOrigin(0.5)
-  
+
     this.menuTexts = [title, notice, trainButton, flowButton, hint]
   },
 
@@ -120,11 +120,11 @@ const FLOWCLIMB_UI_METHODS = {
     if (!this.uploadIcon) {
       return
     }
-  
+
     if (this.uploadIconTimer) {
       this.uploadIconTimer.remove(false)
     }
-  
+
     this.uploadIcon.setVisible(true)
     this.uploadIconTimer = this.time.delayedCall(100, () => {
       this.uploadIcon.setVisible(false)
@@ -137,13 +137,13 @@ const FLOWCLIMB_UI_METHODS = {
     const playerTopY = this.worldToScreenY(this.player.y)
     const startX = Phaser.Math.Clamp(playerCenterX, 14, SCREEN_WIDTH - 14)
     const startY = Phaser.Math.Clamp(playerTopY - 12, 12, SCREEN_HEIGHT - 12)
-  
+
     const indicator = this.add.text(startX, startY, text, {
       fontSize: "14px",
       color,
       fontStyle: "bold",
     }).setOrigin(0.5).setDepth(1000)
-  
+
     this.tweens.add({
       targets: indicator,
       y: indicator.y - 18,
@@ -160,7 +160,7 @@ const FLOWCLIMB_UI_METHODS = {
     if (!textObject) {
       return
     }
-  
+
     this.tweens.killTweensOf(textObject)
     textObject.setScale(1)
     this.tweens.add({
@@ -172,6 +172,15 @@ const FLOWCLIMB_UI_METHODS = {
       ease: "Sine.easeOut",
     })
   },
+
+  flowModelDisplayName() {
+    if (this.selectedFlowModel !== FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX) {
+      return this.selectedFlowModel || "none"
+    }
+    return this.flowOnnxModel?.metadata?.promoted_model_name
+      || this.flowOnnxModel?.metadata?.model_name
+      || "active_onnx"
+  }
 }
 
 globalThis.FLOWCLIMB_UI_METHODS = FLOWCLIMB_UI_METHODS

@@ -5,12 +5,14 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 ## File layout
 
 - `index.html` — page shell, touch controls, telemetry config, and script loading.
-- `src/game.js` — main Phaser scene, game loop, movement/collision, difficulty updates, and orchestration.
-- `src/game-rules.js` — gameplay constants, tuning values, background stops, Flow model candidates, and heuristic challenge-label helper.
-- `src/ui.js` — scene UI/menu/HUD helper methods mixed into the Phaser scene.
+- `src/game.js` — main Phaser scene, game loop, movement/collision, and orchestration.
+- `src/run-state.js` — run startup/reset, score/height, death tracking, failed-jump, and unstuck helper methods mixed into the Phaser scene.
+- `src/game-rules.js` — gameplay constants, tuning values, background stops, Flow model candidates, heuristic challenge-label helper, and difficulty/model scene methods.
+- `src/ui.js` — scene UI/menu/HUD/display helper methods mixed into the Phaser scene.
 - `src/input.js` — keyboard/touch input helper methods mixed into the Phaser scene.
 - `src/game-telemetry.js` — scene telemetry/config/device-context helper methods plus telemetry-window payload builder.
 - `src/platforms.js` — platform generation, reachability, movement, objective, and spawn-worker helper methods mixed into the Phaser scene.
+- `src/rendering.js` — world drawing, coordinate transforms, and color helpers mixed into the Phaser scene.
 - `src/flow-constants.js` — shared study/schema labels for modes, models, and challenge labels.
 - `src/onnx-challenge-model.js` — browser ONNX Runtime wrapper for trained challenge-label models.
 - `src/models/flow/` — promoted ONNX model artifacts used by the deployed game.
@@ -31,7 +33,9 @@ FlowClimb is a static Phaser game loaded from `index.html`.
 6. `src/input.js`
 7. `src/game-telemetry.js`
 8. `src/platforms.js`
-9. `src/game.js`
+9. `src/rendering.js`
+10. `src/run-state.js`
+11. `src/game.js`
 
 `src/game.js` depends on the globals exported by the earlier scripts.
 
