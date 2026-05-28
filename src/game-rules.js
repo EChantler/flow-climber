@@ -193,8 +193,20 @@ const FLOWCLIMB_DIFFICULTY_METHODS = {
   },
 
   async bootstrapFlowModel() {
-    this.setAccessOverlay("Loading Flow model...", "Preparing the study model.")
-    this.flowOnnxModelReady = await this.flowOnnxModel.load()
+    const loadingTitle = "Loading Flow model"
+    let dotCount = 1
+    this.setAccessOverlay(`${loadingTitle}.`, "Preparing the study model.")
+    const loadingAnimation = window.setInterval(() => {
+      dotCount = dotCount % 3 + 1
+      this.setAccessOverlay(`${loadingTitle}${".".repeat(dotCount)}`, "Preparing the study model.")
+    }, 350)
+
+    try {
+      this.flowOnnxModelReady = await this.flowOnnxModel.load()
+    } finally {
+      window.clearInterval(loadingAnimation)
+    }
+
     if (!this.flowOnnxModelReady) {
       const hint = window.location?.protocol === "file:"
         ? "ONNX models cannot load from file://. Serve the folder over http://localhost and try again."
