@@ -52,6 +52,18 @@ function buildFlowClimbTelemetryWindowPayload(input) {
 }
 
 const FLOWCLIMB_TELEMETRY_METHODS = {
+  generateSessionId() {
+    return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  },
+
+  resetSessionId() {
+    this.sessionId = this.generateSessionId()
+    if (this.telemetry) {
+      this.telemetry.sessionId = this.sessionId
+    }
+    return this.sessionId
+  },
+
   initializeTelemetry(telemetryConfig = null) {
     const config = telemetryConfig || this.resolveTelemetryConfig()
     this.telemetry = createTelemetryManager({

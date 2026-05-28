@@ -216,7 +216,19 @@ test('menu modes and model display behavior are wired', () => {
   assert.match(rendering, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
   assert.match(ui, /promoted_model_name/)
   assert.match(ui, /Flow: adaptive difficulty is coming soon\./)
+  assert.match(ui, /showTrainModeIntro\(\)/)
+  assert.match(ui, /Train mode collects gameplay data for the FlowClimb experiment\./)
+  assert.match(ui, /The run will get more difficult over time\./)
+  assert.match(ui, /Start train run/)
+  assert.match(game, /this\.screenState === "menu" \|\| this\.screenState === "mode_intro"/)
   assert.match(gameTelemetrySource(), /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
+})
+
+test('session id resets on run restart and menu return', () => {
+  assert.match(gameTelemetrySource(), /resetSessionId\(\) \{\n    this\.sessionId = this\.generateSessionId\(\)/)
+  assert.match(gameTelemetrySource(), /this\.telemetry\.sessionId = this\.sessionId/)
+  assert.match(runStateSource(), /startRun\(mode\) \{\n    this\.resetSessionId\(\)/)
+  assert.match(uiSource(), /showMenu\(\) \{\n    this\.resetSessionId\(\)/)
 })
 
 test('access rejection clears stored participant token before blocking', () => {

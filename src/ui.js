@@ -30,7 +30,13 @@ const FLOWCLIMB_UI_METHODS = {
       button.menuEnabled = enabled
       if (enabled) {
         button.setInteractive({ useHandCursor: true })
-        button.on("pointerdown", () => this.startRun(mode))
+        button.on("pointerdown", () => {
+          if (mode === FLOWCLIMB_MODES.TRAIN) {
+            this.showTrainModeIntro()
+          } else {
+            this.startRun(mode)
+          }
+        })
         button.on("pointerover", () => button.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
         button.on("pointerout", () => button.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
       }
@@ -48,6 +54,44 @@ const FLOWCLIMB_UI_METHODS = {
     }).setOrigin(0.5)
 
     this.menuTexts = [title, notice, trainButton, flowButton, hint]
+
+    const trainIntroTitle = this.add.text(SCREEN_WIDTH / 2, 140, "Train mode", {
+      fontSize: "46px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    }).setOrigin(0.5)
+    const trainIntroBody = this.add.text(
+      SCREEN_WIDTH / 2,
+      306,
+      "\n\nTrain mode collects gameplay data for the FlowClimb experiment.\n\nThe run will get more difficult over time. Play for as long as you like.\n\nIf it becomes too difficult, you can restart the run. It would be appreciated if you play a couple of rounds for the sake of the study.",
+      {
+        fontSize: "22px",
+        color: "#d6deea",
+        align: "center",
+        wordWrap: { width: 590 },
+        lineSpacing: 10,
+      },
+    ).setOrigin(0.5)
+    const trainIntroStartButton = this.add.text(SCREEN_WIDTH / 2, 540, "Start train run", {
+      fontSize: "28px",
+      color: "#ffffff",
+      backgroundColor: "rgba(55, 83, 126, 0.82)",
+      padding: { x: 28, y: 14 },
+    }).setOrigin(0.5)
+    trainIntroStartButton.setInteractive({ useHandCursor: true })
+    trainIntroStartButton.on("pointerdown", () => this.startRun(FLOWCLIMB_MODES.TRAIN))
+    trainIntroStartButton.on("pointerover", () => trainIntroStartButton.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
+    trainIntroStartButton.on("pointerout", () => trainIntroStartButton.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
+    const trainIntroBackButton = this.add.text(SCREEN_WIDTH / 2, 624, "Back to menu", {
+      fontSize: "20px",
+      color: "#d6deea",
+      backgroundColor: "rgba(55, 83, 126, 0.45)",
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5)
+    trainIntroBackButton.setInteractive({ useHandCursor: true })
+    trainIntroBackButton.on("pointerdown", () => this.showMenu())
+    this.trainIntroTexts = [trainIntroTitle, trainIntroBody, trainIntroStartButton, trainIntroBackButton]
+    this.setTrainIntroVisible(false)
   },
 
   setMenuVisible(visible) {
@@ -65,6 +109,22 @@ const FLOWCLIMB_UI_METHODS = {
     }
   },
 
+  setTrainIntroVisible(visible) {
+    if (this.trainIntroTexts) {
+      this.trainIntroTexts.forEach((text) => text.setVisible(visible))
+    }
+  },
+
+  showTrainModeIntro() {
+    this.screenState = "mode_intro"
+    this.resetFallbackKeys()
+    this.setMenuVisible(false)
+    this.setHudVisible(false)
+    this.setTouchControlsVisible(false)
+    this.setTrainIntroVisible(true)
+    this.drawMenuBackground()
+  },
+
   setHudVisible(visible) {
     this.hudTexts.forEach((text) => text.setVisible(visible))
   },
@@ -77,6 +137,7 @@ const FLOWCLIMB_UI_METHODS = {
   },
 
   showMenu() {
+    this.resetSessionId()
     this.screenState = "menu"
     this.gameMode = null
     this.selectedFlowModel = null
@@ -88,6 +149,7 @@ const FLOWCLIMB_UI_METHODS = {
     this.pauseOverlayHint.setVisible(false)
     this.unstuckOverlay.setVisible(false)
     this.uploadIcon.setVisible(false)
+    this.setTrainIntroVisible(false)
     this.setMenuVisible(true)
     this.drawMenuBackground()
   },

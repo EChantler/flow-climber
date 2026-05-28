@@ -1,5 +1,6 @@
 const FLOWCLIMB_RUN_STATE_METHODS = {
   startRun(mode) {
+    this.resetSessionId()
     this.gameMode = mode
     this.selectedFlowModel = mode === FLOWCLIMB_MODES.FLOW ? Phaser.Utils.Array.GetRandom(FLOW_MODEL_NAMES) : null
     this.lastChallengeLabel = FLOWCLIMB_CHALLENGE_LABELS.APPROPRIATE
@@ -12,6 +13,7 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
 
   resetWorld() {
     this.screenState = "playing"
+    this.setTrainIntroVisible(false)
     this.setMenuVisible(false)
     this.setHudVisible(true)
     this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)

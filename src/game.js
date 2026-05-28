@@ -1,5 +1,5 @@
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.15.8"
+const GAME_VERSION = "v0.15.10"
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
@@ -84,7 +84,7 @@ class EndlessClimberScene extends Phaser.Scene {
     this.playerName = "player"
     this.pendingTelemetry = []
     this.telemetry = null
-    this.sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    this.resetSessionId()
     this.spawnWorker = null
     this.spawnPrefetch = null
     this.latestSpawnRequestId = 0
@@ -133,7 +133,7 @@ class EndlessClimberScene extends Phaser.Scene {
       return
     }
 
-    if (this.screenState === "menu") {
+    if (this.screenState === "menu" || this.screenState === "mode_intro") {
       this.drawMenuBackground()
       return
     }
