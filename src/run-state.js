@@ -125,7 +125,7 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
     this.unstuckAvailable = this.deathTimestamps.length >= UNSTUCK_DEATH_THRESHOLD
     this.unstuckOverlay.setText(
       this.unstuckAvailable
-        ? "Unstuck available: press U or tap Teleport to move to the next platform"
+        ? "Teleport available\nPress U or tap Teleport"
         : "",
     )
     this.setTouchTeleportVisible(this.unstuckAvailable)

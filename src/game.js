@@ -1,5 +1,5 @@
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.15.12"
+const GAME_VERSION = "v0.15.13"
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
@@ -56,10 +56,12 @@ class EndlessClimberScene extends Phaser.Scene {
       fontSize: "20px",
       color: "#d6deea",
     }).setOrigin(0.5).setVisible(true)
-    this.unstuckOverlay = this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 118, "", {
-      fontSize: "20px",
+    this.unstuckOverlay = this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 128, "", {
+      fontSize: "18px",
       color: "#ffe08a",
       backgroundColor: "rgba(10, 14, 20, 0.72)",
+      align: "center",
+      wordWrap: { width: SCREEN_WIDTH - 72 },
       padding: { x: 12, y: 8 },
     }).setOrigin(0.5).setVisible(false)
 
