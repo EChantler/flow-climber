@@ -134,6 +134,16 @@ const FLOWCLIMB_UI_METHODS = {
     if (controls) {
       controls.style.visibility = visible ? "visible" : "hidden"
     }
+    if (!visible) {
+      this.setTouchTeleportVisible(false)
+    }
+  },
+
+  setTouchTeleportVisible(visible) {
+    const teleportButton = document.getElementById("touch-teleport")
+    if (teleportButton) {
+      teleportButton.hidden = !visible
+    }
   },
 
   showMenu() {
@@ -148,6 +158,7 @@ const FLOWCLIMB_UI_METHODS = {
     this.pauseOverlay.setVisible(false)
     this.pauseOverlayHint.setVisible(false)
     this.unstuckOverlay.setVisible(false)
+    this.setTouchTeleportVisible(false)
     this.uploadIcon.setVisible(false)
     this.setTrainIntroVisible(false)
     this.setMenuVisible(true)

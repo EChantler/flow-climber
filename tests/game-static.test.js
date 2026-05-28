@@ -224,6 +224,18 @@ test('menu modes and model display behavior are wired', () => {
   assert.match(gameTelemetrySource(), /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
 })
 
+test('mobile teleport button appears when unstuck is available', () => {
+  const index = indexSource()
+  assert.match(index, /id="touch-teleport"/)
+  assert.match(index, /touch-button--teleport/)
+  assert.match(inputSource(), /document\.getElementById\("touch-teleport"\)/)
+  assert.match(inputSource(), /this\.pendingActionPress\.u = true/)
+  assert.match(uiSource(), /setTouchTeleportVisible\(visible\)/)
+  assert.match(runStateSource(), /tap Teleport/)
+  assert.match(runStateSource(), /this\.setTouchTeleportVisible\(this\.unstuckAvailable\)/)
+  assert.match(runStateSource(), /this\.setTouchTeleportVisible\(false\)/)
+})
+
 test('session id resets on run restart and menu return', () => {
   assert.match(gameTelemetrySource(), /resetSessionId\(\) \{\n    this\.sessionId = this\.generateSessionId\(\)/)
   assert.match(gameTelemetrySource(), /this\.telemetry\.sessionId = this\.sessionId/)

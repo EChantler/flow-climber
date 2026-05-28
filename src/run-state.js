@@ -61,6 +61,7 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
     this.deathTimestamps = []
     this.unstuckAvailable = false
     this.unstuckOverlay.setVisible(false)
+    this.setTouchTeleportVisible(false)
   
     this.cameraY = this.player.y - PLAYER_CAMERA_TARGET_SCREEN_Y
     this.runStartHeightY = this.player.y
@@ -124,9 +125,10 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
     this.unstuckAvailable = this.deathTimestamps.length >= UNSTUCK_DEATH_THRESHOLD
     this.unstuckOverlay.setText(
       this.unstuckAvailable
-        ? "Unstuck available: press U to teleport to the next platform"
+        ? "Unstuck available: press U or tap Teleport to move to the next platform"
         : "",
     )
+    this.setTouchTeleportVisible(this.unstuckAvailable)
   },
 
   performUnstuckTeleport() {
@@ -156,6 +158,7 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
     this.deathTimestamps = []
     this.unstuckAvailable = false
     this.unstuckOverlay.setVisible(false)
+    this.setTouchTeleportVisible(false)
     this.showScoreIndicator("UNSTUCK", "#ffe08a")
   },
 

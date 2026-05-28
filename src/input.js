@@ -147,6 +147,11 @@ const FLOWCLIMB_INPUT_METHODS = {
           this.pendingActionPress.q = true
         },
       }),
+      bind(document.getElementById("touch-teleport"), {
+        down: () => {
+          this.pendingActionPress.u = true
+        },
+      }),
     ].filter(Boolean)
   },
 
