@@ -1,5 +1,5 @@
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.15.7"
+const GAME_VERSION = "v0.15.8"
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
@@ -126,56 +126,6 @@ class EndlessClimberScene extends Phaser.Scene {
     })
 
     void this.bootstrapAccessControl()
-  }
-
-  async bootstrapFlowModel() {
-    this.setAccessOverlay("Loading Flow model...", "Preparing the study model.")
-    this.flowOnnxModelReady = await this.flowOnnxModel.load()
-    if (!this.flowOnnxModelReady) {
-      const hint = window.location?.protocol === "file:"
-        ? "ONNX models cannot load from file://. Serve the folder over http://localhost and try again."
-        : "Please notify the developer and include this message."
-      this.blockAccess("Flow model failed to load", hint)
-      return false
-    }
-    return true
-  }
-
-  async bootstrapAccessControl() {
-    this.setAccessOverlay("Checking access token...", "Submitting startup event.")
-
-    try {
-      const telemetryConfig = this.resolveTelemetryConfig()
-      this.initializeTelemetry(telemetryConfig)
-      if (!this.telemetry.enabled) {
-        this.blockAccess("Could not initialize access check", "Refresh and try again.")
-        return
-      }
-
-      const accepted = await this.validateParticipantAccess(telemetryConfig.participantToken)
-      if (!accepted || this.accessBlocked) {
-        if (!this.accessBlocked) {
-          this.clearStoredParticipantToken()
-          this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
-        }
-        return
-      }
-
-      const flowModelReady = await this.bootstrapFlowModel()
-      if (!flowModelReady || this.accessBlocked) {
-        return
-      }
-
-      this.initializeSpawnWorker()
-      this.telemetry.start()
-      this.gameReady = true
-      this.accessOverlay.setVisible(false)
-      this.accessOverlayHint.setVisible(false)
-      this.showMenu()
-    } catch (error) {
-      console.error("Access validation failed:", error)
-      this.blockAccess("Could not validate access token", "Refresh and try again.")
-    }
   }
 
   update(_, delta) {

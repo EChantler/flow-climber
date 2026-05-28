@@ -220,8 +220,7 @@ test('menu modes and model display behavior are wired', () => {
 })
 
 test('access rejection clears stored participant token before blocking', () => {
-  const game = gameSource()
-  assert.match(game, /if \(!accepted \|\| this\.accessBlocked\) \{\n        if \(!this\.accessBlocked\) \{\n          this\.clearStoredParticipantToken\(\)\n          this\.blockAccess\("Access token rejected", "Refresh and enter a valid access token\."\)/)
+  assert.match(gameTelemetrySource(), /if \(!accepted \|\| this\.accessBlocked\) \{\n        if \(!this\.accessBlocked\) \{\n          this\.clearStoredParticipantToken\(\)\n          this\.blockAccess\("Access token rejected", "Refresh and enter a valid access token\."\)/)
 })
 
 test('flow ML model loads active ONNX model with blocking failure behavior', () => {
@@ -234,8 +233,8 @@ test('flow ML model loads active ONNX model with blocking failure behavior', () 
   assert.match(onnxModel, /feature_columns\.map/)
   assert.match(game, /this\.flowOnnxModel = createFlowClimbOnnxChallengeModel\(\)/)
   assert.match(gameRulesSource(), /const onnxLabel = await this\.flowOnnxModel\.predict\(features\)/)
-  assert.match(game, /ONNX models cannot load from file:\/\//)
-  assert.match(game, /this\.blockAccess\("Flow model failed to load", hint\)/)
+  assert.match(gameRulesSource(), /ONNX models cannot load from file:\/\//)
+  assert.match(gameRulesSource(), /this\.blockAccess\("Flow model failed to load", hint\)/)
   assert.match(gameRulesSource(), /this\.blockAccess\("Flow model prediction failed", "Please notify the developer and include this message\."\)/)
   assert.doesNotMatch(game, /falling back to JS model/)
   assert.ok(fs.existsSync('src/models/flow/active.onnx'))

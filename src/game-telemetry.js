@@ -295,6 +295,43 @@ const FLOWCLIMB_TELEMETRY_METHODS = {
       secondsSinceFlag: (now - this.lastFlagTimestamp) / 1000,
       difficulty: this.difficultyLevel,
     }
+  },
+
+  async bootstrapAccessControl() {
+    this.setAccessOverlay("Checking access token...", "Submitting startup event.")
+
+    try {
+      const telemetryConfig = this.resolveTelemetryConfig()
+      this.initializeTelemetry(telemetryConfig)
+      if (!this.telemetry.enabled) {
+        this.blockAccess("Could not initialize access check", "Refresh and try again.")
+        return
+      }
+
+      const accepted = await this.validateParticipantAccess(telemetryConfig.participantToken)
+      if (!accepted || this.accessBlocked) {
+        if (!this.accessBlocked) {
+          this.clearStoredParticipantToken()
+          this.blockAccess("Access token rejected", "Refresh and enter a valid access token.")
+        }
+        return
+      }
+
+      const flowModelReady = await this.bootstrapFlowModel()
+      if (!flowModelReady || this.accessBlocked) {
+        return
+      }
+
+      this.initializeSpawnWorker()
+      this.telemetry.start()
+      this.gameReady = true
+      this.accessOverlay.setVisible(false)
+      this.accessOverlayHint.setVisible(false)
+      this.showMenu()
+    } catch (error) {
+      console.error("Access validation failed:", error)
+      this.blockAccess("Could not validate access token", "Refresh and try again.")
+    }
   }
 }
 

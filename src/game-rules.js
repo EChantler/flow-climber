@@ -191,6 +191,19 @@ const FLOWCLIMB_DIFFICULTY_METHODS = {
 
     return predictFlowClimbHeuristicChallengeLabel(features)
   },
+
+  async bootstrapFlowModel() {
+    this.setAccessOverlay("Loading Flow model...", "Preparing the study model.")
+    this.flowOnnxModelReady = await this.flowOnnxModel.load()
+    if (!this.flowOnnxModelReady) {
+      const hint = window.location?.protocol === "file:"
+        ? "ONNX models cannot load from file://. Serve the folder over http://localhost and try again."
+        : "Please notify the developer and include this message."
+      this.blockAccess("Flow model failed to load", hint)
+      return false
+    }
+    return true
+  }
 }
 
 globalThis.FLOWCLIMB_DIFFICULTY_METHODS = FLOWCLIMB_DIFFICULTY_METHODS
