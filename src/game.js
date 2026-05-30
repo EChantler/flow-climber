@@ -1,5 +1,5 @@
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.15.13"
+const GAME_VERSION = "v0.15.14"
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
