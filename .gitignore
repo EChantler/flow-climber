@@ -4,8 +4,12 @@ __pycache__/
 
 # Local ML data, generated model artifacts, and tracking state
 ml/data/*.csv
+ml/data/raw/*
+ml/data/processed/*
+
 ml/models/*.onnx
 ml/models/*.json
+ml/models/*.png
 ml/mlruns/
 ml/.mlflow/
 

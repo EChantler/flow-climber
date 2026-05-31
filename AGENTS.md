@@ -42,6 +42,8 @@ Preserve the 10-second window order:
 
 ML training scaffolding lives in `ml/`. Do not commit local CSV exports, generated ONNX files, MLflow runs, or other generated training artifacts unless intentionally promoting a model artifact for game use. Promoted browser-consumed model artifacts live under `src/models/flow/`.
 
+After running ML training, present the resulting metrics, suggest possible learnings from the run, and ask what should be added to `ml/TRAINING_NOTES.md` before updating the notes.
+
 ## Safety
 
 Do not add new secrets or tokens. If telemetry config changes, prefer documented configuration over hardcoding.

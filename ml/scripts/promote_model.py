@@ -11,7 +11,7 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, help="Model name to promote, e.g. logistic_regression, linear_svc, gaussian_nb.")
+    parser.add_argument("--model", required=True, help="Model name to promote, e.g. logistic_regression, rbf_svc, gaussian_nb.")
     parser.add_argument("--models-dir", type=Path, default=Path("ml/models"))
     parser.add_argument("--output-dir", type=Path, default=Path("src/models/flow"))
     return parser.parse_args()
