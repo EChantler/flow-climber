@@ -204,6 +204,11 @@ def preprocess(
     ).add_prefix("meta_")
     processed = pd.concat([frame.drop(columns=[metadata_column]), metadata], axis=1)
 
+    if {"height_climbed", "meta_window_starting_height"}.issubset(processed.columns):
+        processed["height_delta"] = (processed["height_climbed"] - processed["meta_window_starting_height"]).clip(lower=0)
+    if "meta_deaths" in processed.columns:
+        processed["deaths_delta"] = processed["meta_deaths"]
+
     dropped_columns = dropped_columns or set(DEFAULT_DROPPED_COLUMNS)
     processed = processed.drop(columns=[col for col in dropped_columns if col in processed.columns])
     processed = processed.dropna(axis=0, how="any").reset_index(drop=True)

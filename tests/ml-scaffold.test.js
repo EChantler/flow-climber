@@ -13,6 +13,7 @@ test('ml scaffold defines conda environment with training dependencies', () => {
 
 test('ml training script targets the interchangeable model candidates', () => {
   execFileSync('python3', ['-m', 'py_compile', 'ml/scripts/train_models.py'], { stdio: 'pipe' })
+  execFileSync('python3', ['-m', 'py_compile', 'ml/scripts/train_models_deaths_height.py'], { stdio: 'pipe' })
   execFileSync('python3', ['-m', 'py_compile', 'ml/scripts/preprocess_telemetry.py'], { stdio: 'pipe' })
   execFileSync('python3', ['-m', 'py_compile', 'ml/scripts/promote_model.py'], { stdio: 'pipe' })
   execFileSync('python3', ['-m', 'py_compile', 'ml/scripts/mlflow_ui.py'], { stdio: 'pipe' })
@@ -35,9 +36,16 @@ test('ml training script targets the interchangeable model candidates', () => {
   assert.match(script, /save_confusion_matrix_plot/)
   assert.match(script, /validation_metrics\.png/)
   assert.match(script, /model_validation_metric_comparison\.png/)
+  assert.match(script, /permutation_importance/)
+  assert.match(script, /validation_permutation_importance\.csv/)
+  assert.match(script, /validation_heuristic_features_zeroed_/)
   assert.match(script, /train_data_path/)
   assert.match(script, /validation_data_path/)
   assert.doesNotMatch(script, /test_data_path/)
+
+  const deathsHeightScript = fs.readFileSync('ml/scripts/train_models_deaths_height.py', 'utf8')
+  assert.match(deathsHeightScript, /DEATHS_HEIGHT_FEATURE_COLUMNS = \["deaths_delta", "height_delta"\]/)
+  assert.match(deathsHeightScript, /always uses only deaths_delta and height_delta/)
 
   const preprocessScript = fs.readFileSync('ml/scripts/preprocess_telemetry.py', 'utf8')
   assert.match(preprocessScript, /pd\.json_normalize/)
@@ -48,6 +56,8 @@ test('ml training script targets the interchangeable model candidates', () => {
   assert.match(preprocessScript, /DEFAULT_VALIDATION_SHARE/)
   assert.match(preprocessScript, /split_frame/)
   assert.match(preprocessScript, /pd\.get_dummies/)
+  assert.match(preprocessScript, /height_delta/)
+  assert.match(preprocessScript, /deaths_delta/)
 
   const promoteScript = fs.readFileSync('ml/scripts/promote_model.py', 'utf8')
   assert.match(promoteScript, /active\.onnx/)
@@ -66,10 +76,10 @@ test('ml telemetry preprocessor flattens metadata and drops incomplete rows', ()
   const inputPath = path.join(tempDir, 'raw.csv')
   const outputPath = path.join(tempDir, 'processed.csv')
   fs.writeFileSync(inputPath, [
-    'id,session_id,token_used,metric_value,event_type,created_at,game_version,game_mode,window_started_at,window_ended_at,data_schema_version,deployment_context,challenge_label,device_type,metadata,score',
-    '1,s1,t1,0.1,telemetry_window,2026-01-01T00:00:00Z,v0.1.0,train,2026-01-01T00:00:00Z,2026-01-01T00:00:10Z,6,deployed,appropriately_challenged,mobile,"{""a"":1,""b"":""x"",""failed_jump_counts"":{""Space"":2}}",10',
-    '2,s2,t2,0.2,telemetry_window,2026-01-01T00:00:10Z,v0.1.0,flow-ML,2026-01-01T00:00:10Z,2026-01-01T00:00:20Z,6,deployed,over_challenged,desktop,"{""a"":2,""b"":""y"",""failed_jump_counts"":{}}",20',
-    '3,s3,t3,0.3,telemetry_window,2026-01-01T00:00:20Z,v0.1.0,train,2026-01-01T00:00:20Z,2026-01-01T00:00:30Z,,deployed,under_challenged,mobile,"{""a"":3,""b"":""z""}",30',
+    'id,session_id,token_used,metric_value,event_type,created_at,game_version,game_mode,window_started_at,window_ended_at,data_schema_version,deployment_context,challenge_label,device_type,metadata,score,height_climbed',
+    '1,s1,t1,0.1,telemetry_window,2026-01-01T00:00:00Z,v0.1.0,train,2026-01-01T00:00:00Z,2026-01-01T00:00:10Z,6,deployed,appropriately_challenged,mobile,"{""a"":1,""b"":""x"",""deaths"":2,""window_starting_height"":900,""failed_jump_counts"":{""Space"":2}}",10,1200',
+    '2,s2,t2,0.2,telemetry_window,2026-01-01T00:00:10Z,v0.1.0,flow-ML,2026-01-01T00:00:10Z,2026-01-01T00:00:20Z,6,deployed,over_challenged,desktop,"{""a"":2,""b"":""y"",""deaths"":1,""window_starting_height"":50,""failed_jump_counts"":{}}",20,100',
+    '3,s3,t3,0.3,telemetry_window,2026-01-01T00:00:20Z,v0.1.0,train,2026-01-01T00:00:20Z,2026-01-01T00:00:30Z,,deployed,under_challenged,mobile,"{""a"":3,""b"":""z"",""deaths"":0,""window_starting_height"":10}",30,250',
   ].join('\n') + '\n')
 
   execFileSync('python3', [
@@ -87,7 +97,9 @@ test('ml telemetry preprocessor flattens metadata and drops incomplete rows', ()
   }
   assert.doesNotMatch(processed[0], /failed_jump_counts/)
   assert.match(processed[0], /device_type_mobile/)
-  assert.match(processed[1], /^appropriately_challenged,10,1,x,1$/)
+  assert.match(processed[0], /height_delta/)
+  assert.match(processed[0], /deaths_delta/)
+  assert.match(processed[1], /^appropriately_challenged,10,1200,1,x,2,900,300,2,1$/)
   for (const splitName of ['train', 'validation', 'test']) {
     assert.ok(fs.existsSync(outputPath.replace(/\.csv$/, `.${splitName}.csv`)))
   }
@@ -95,7 +107,7 @@ test('ml telemetry preprocessor flattens metadata and drops incomplete rows', ()
 
 test('generated ml artifacts and local csv exports are ignored', () => {
   const gitignore = fs.readFileSync('.gitignore', 'utf8')
-  for (const pattern of ['ml/data/*.csv', 'ml/models/*.onnx', 'ml/models/*.json', 'ml/models/*.png', 'ml/mlruns/']) {
+  for (const pattern of ['ml/data/*.csv', 'ml/models/*.onnx', 'ml/models/*.json', 'ml/models/*.png', 'ml/models/*.csv', 'ml/models/**/*.onnx', 'ml/models/**/*.json', 'ml/models/**/*.png', 'ml/models/**/*.csv', 'ml/mlruns/']) {
     assert.ok(gitignore.includes(pattern), `missing ignore pattern ${pattern}`)
   }
 })

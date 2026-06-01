@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train FlowClimb challenge-label model candidates and export ONNX files."""
+"""Train FlowClimb challenge-label models using only deaths and height-delta features."""
 
 from __future__ import annotations
 
@@ -28,7 +28,6 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.pipeline import Pipeline
@@ -37,7 +36,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
 
-HEURISTIC_FEATURE_COLUMNS = ("deaths_delta", "height_delta")
+DEATHS_HEIGHT_FEATURE_COLUMNS = ["deaths_delta", "height_delta"]
 
 
 MODEL_TARGETS = {
@@ -74,7 +73,7 @@ def parse_args() -> TrainingConfig:
     parser.add_argument("--train-data", type=Path, default=None, help="Pre-split training CSV.")
     parser.add_argument("--validation-data", type=Path, default=None, help="Pre-split validation CSV.")
     parser.add_argument("--target", default="challenge_label")
-    parser.add_argument("--output-dir", type=Path, default=Path("ml/models"))
+    parser.add_argument("--output-dir", type=Path, default=Path("ml/models/deaths_height"))
     parser.add_argument("--features", nargs="*", default=None, help="Explicit feature columns in ONNX inference order.")
     parser.add_argument("--experiment-name", default="flowclimb-challenge-models")
     parser.add_argument("--tracking-uri", default="file:ml/mlruns")
@@ -98,18 +97,12 @@ def parse_args() -> TrainingConfig:
 def resolve_feature_columns(frame: pd.DataFrame, target_column: str, requested: Iterable[str] | None) -> list[str]:
     if target_column not in frame.columns:
         raise ValueError(f"Target column '{target_column}' is missing from CSV")
-
     if requested:
-        missing = [column for column in requested if column not in frame.columns]
-        if missing:
-            raise ValueError(f"Requested feature columns missing from CSV: {missing}")
-        return list(requested)
-
-    numeric_columns = frame.select_dtypes(include=[np.number]).columns.tolist()
-    features = [column for column in numeric_columns if column != target_column]
-    if not features:
-        raise ValueError("No numeric feature columns found. Pass --features to select columns explicitly.")
-    return features
+        raise ValueError("This diagnostic script always uses only deaths_delta and height_delta; do not pass --features.")
+    missing = [column for column in DEATHS_HEIGHT_FEATURE_COLUMNS if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Deaths/height feature columns missing from CSV: {missing}")
+    return list(DEATHS_HEIGHT_FEATURE_COLUMNS)
 
 
 def build_pipeline(model_name: str) -> Pipeline:
@@ -205,19 +198,6 @@ def save_per_class_f1_plot(path: Path, metrics: dict[str, float], class_names: l
     plt.close(fig)
 
 
-def save_feature_importance_plot(path: Path, importance_frame: pd.DataFrame, title: str, top_n: int = 15) -> None:
-    top_features = importance_frame.head(top_n).iloc[::-1]
-    fig, ax = plt.subplots(figsize=(9, max(4.5, 0.32 * len(top_features))))
-    bars = ax.barh(top_features["feature"], top_features["importance_mean"], color="#4e79a7")
-    ax.set_xlabel("Permutation importance (validation accuracy decrease)")
-    ax.set_title(title)
-    for bar, value in zip(bars, top_features["importance_mean"], strict=True):
-        ax.text(value + 0.002, bar.get_y() + bar.get_height() / 2, f"{value:.3f}", va="center")
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
-
-
 def save_model_comparison_plot(path: Path, model_metrics: dict[str, dict[str, float]]) -> None:
     metric_names = ["validation_accuracy", "validation_balanced_accuracy", "validation_f1_macro"]
     labels = ["Val accuracy", "Val balanced acc", "Val F1 macro"]
@@ -301,41 +281,6 @@ def validate_feature_columns(frames: Iterable[pd.DataFrame], feature_columns: li
             raise ValueError(f"Required columns missing from training split: {missing}")
 
 
-def zero_ablated_features(frame: pd.DataFrame, feature_columns: list[str]) -> tuple[pd.DataFrame, list[str]]:
-    ablated_columns = [column for column in HEURISTIC_FEATURE_COLUMNS if column in feature_columns]
-    ablated = frame.copy()
-    for column in ablated_columns:
-        ablated[column] = 0
-    return ablated, ablated_columns
-
-
-def compute_permutation_importance_frame(
-    pipeline: Pipeline,
-    x_validation: pd.DataFrame,
-    y_validation: np.ndarray,
-    feature_columns: list[str],
-    random_state: int,
-) -> pd.DataFrame:
-    result = permutation_importance(
-        pipeline,
-        x_validation.to_numpy(dtype=np.float32),
-        y_validation,
-        scoring="accuracy",
-        n_repeats=10,
-        random_state=random_state,
-        n_jobs=1,
-    )
-    return (
-        pd.DataFrame({
-            "feature": feature_columns,
-            "importance_mean": result.importances_mean,
-            "importance_std": result.importances_std,
-        })
-        .sort_values("importance_mean", ascending=False)
-        .reset_index(drop=True)
-    )
-
-
 def main() -> None:
     config = parse_args()
     train_frame, validation_frame, full_frame = load_training_frames(config)
@@ -376,26 +321,6 @@ def main() -> None:
             metrics = compute_metrics(y_test, predictions, class_labels, class_names, prefix="validation_")
             metrics["train_accuracy"] = accuracy_score(y_train, train_predictions)
 
-            x_test_ablated, ablated_columns = zero_ablated_features(x_test, feature_columns)
-            ablated_predictions = pipeline.predict(x_test_ablated.to_numpy(dtype=np.float32))
-            metrics.update(
-                compute_metrics(
-                    y_test,
-                    ablated_predictions,
-                    class_labels,
-                    class_names,
-                    prefix="validation_heuristic_features_zeroed_",
-                )
-            )
-
-            feature_importance = compute_permutation_importance_frame(
-                pipeline,
-                x_test,
-                y_test,
-                feature_columns,
-                config.random_state,
-            )
-
             mlflow.log_param("model_name", model_name)
             mlflow.log_param("data_path", str(config.data_path))
             mlflow.log_param("train_data_path", str(config.train_data_path) if config.train_data_path else "")
@@ -403,7 +328,6 @@ def main() -> None:
             mlflow.log_param("target_column", config.target_column)
             mlflow.log_param("feature_columns", json.dumps(feature_columns))
             mlflow.log_param("feature_count", len(feature_columns))
-            mlflow.log_param("ablated_feature_columns", json.dumps(ablated_columns))
             mlflow.log_param("row_count", len(full_frame))
             mlflow.log_param("train_row_count", len(x_train))
             mlflow.log_param("validation_row_count", len(x_test))
@@ -446,39 +370,6 @@ def main() -> None:
             save_per_class_f1_plot(per_class_f1_plot_path, metrics, class_names, f"{model_name} validation F1 by class")
             mlflow.log_artifact(str(per_class_f1_plot_path))
 
-            importance_csv_path = config.output_dir / f"{model_name}.validation_permutation_importance.csv"
-            feature_importance.to_csv(importance_csv_path, index=False)
-            mlflow.log_artifact(str(importance_csv_path))
-
-            importance_json_path = config.output_dir / f"{model_name}.validation_permutation_importance.json"
-            write_json(importance_json_path, {"features": feature_importance.to_dict(orient="records")})
-            mlflow.log_artifact(str(importance_json_path))
-
-            importance_plot_path = config.output_dir / f"{model_name}.validation_permutation_importance.png"
-            save_feature_importance_plot(importance_plot_path, feature_importance, f"{model_name} validation feature importance")
-            mlflow.log_artifact(str(importance_plot_path))
-
-            ablated_report = classification_report(
-                y_test,
-                ablated_predictions,
-                target_names=class_names,
-                output_dict=True,
-                zero_division=0,
-            )
-            ablated_report_path = config.output_dir / f"{model_name}.validation_heuristic_features_zeroed_classification_report.json"
-            write_json(ablated_report_path, ablated_report)
-            mlflow.log_artifact(str(ablated_report_path))
-
-            ablated_confusion = confusion_matrix(y_test, ablated_predictions, labels=class_labels)
-            ablated_confusion_payload = {
-                "labels": class_names,
-                "ablated_feature_columns": ablated_columns,
-                "matrix": ablated_confusion.astype(int).tolist(),
-            }
-            ablated_confusion_path = config.output_dir / f"{model_name}.validation_heuristic_features_zeroed_confusion_matrix.json"
-            write_json(ablated_confusion_path, ablated_confusion_payload)
-            mlflow.log_artifact(str(ablated_confusion_path))
-
             onnx_path = config.output_dir / f"{model_name}.onnx"
             export_onnx(pipeline, onnx_path, len(feature_columns), model_name)
             mlflow.log_artifact(str(onnx_path))
@@ -490,8 +381,6 @@ def main() -> None:
                 "feature_columns": feature_columns,
                 "classes": class_names,
                 "class_distribution": class_distribution,
-                "ablated_feature_columns": ablated_columns,
-                "top_permutation_importance": feature_importance.head(10).to_dict(orient="records"),
                 "metrics": metrics,
             }
             metadata_path = config.output_dir / f"{model_name}.metadata.json"

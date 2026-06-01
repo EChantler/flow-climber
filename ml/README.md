@@ -28,7 +28,7 @@ python ml/scripts/preprocess_telemetry.py \
   --output ml/data/processed/2026-05-30-21-02.processed.csv
 ```
 
-The preprocessor filters to `data_schema_version >= 6` and `game_mode == "train"`, flattens the JSON `metadata` object into `meta_*` columns, drops the nested `failed_jump_counts` metadata dictionary, drops non-feature columns (`id`, `session_id`, `token_used`, `metric_value`, `event_type`, `created_at`, `game_version`, `game_mode`, `window_started_at`, `window_ended_at`, `data_schema_version`, `deployment_context`, `meta_logged_at`, `meta_window_duration_ms`, `meta_platform_height_avg_px`, `meta_platform_height_max_px`, and `meta_platform_height_min_px`), removes rows with null values in any output column, one-hot encodes `device_type`, and writes full, training, validation, and test CSVs. By default the splits are stratified by `challenge_label` with 70% train, 15% validation, and 15% test.
+The preprocessor filters to `data_schema_version >= 6` and `game_mode == "train"`, flattens the JSON `metadata` object into `meta_*` columns, drops the nested `failed_jump_counts` metadata dictionary, drops non-feature columns (`id`, `session_id`, `token_used`, `metric_value`, `event_type`, `created_at`, `game_version`, `game_mode`, `window_started_at`, `window_ended_at`, `data_schema_version`, `deployment_context`, `meta_logged_at`, `meta_window_duration_ms`, `meta_platform_height_avg_px`, `meta_platform_height_max_px`, and `meta_platform_height_min_px`), adds heuristic-aligned `height_delta` (`height_climbed - meta_window_starting_height`, clipped at 0) and `deaths_delta` (`meta_deaths`) features, removes rows with null values in any output column, one-hot encodes `device_type`, and writes full, training, validation, and test CSVs. By default the splits are stratified by `challenge_label` with 70% train, 15% validation, and 15% test.
 
 ## Training
 
@@ -44,13 +44,22 @@ python ml/scripts/train_models.py \
 
 The test split is reserved for a separate final-evaluation script and is not consumed by `train_models.py`.
 
+For a diagnostic run that uses only the heuristic-aligned deaths/height features (`deaths_delta`, `height_delta`), use the duplicate script:
+
+```bash
+python ml/scripts/train_models_deaths_height.py \
+  --train-data ml/data/processed/2026-06-01-20-38.processed.train.csv \
+  --validation-data ml/data/processed/2026-06-01-20-38.processed.validation.csv \
+  --target challenge_label
+```
+
 The script trains and exports these model candidates:
 
 - `logistic_regression` — L2-regularized logistic regression on scaled features.
 - `rbf_svc` — radial-basis-function SVM on scaled features.
 - `gaussian_nb` — Gaussian Naive Bayes with configured variance smoothing.
 
-Each run is tracked in MLflow under the `flowclimb-challenge-models` experiment. By default, local MLflow files are written to `ml/mlruns`. Runs log dataset parameters, class distribution, train/validation row counts, validation accuracy, validation balanced accuracy, validation macro/weighted precision/recall/F1, validation per-class precision/recall/F1/support, train accuracy, validation classification reports, validation confusion matrices, and PNG charts for confusion matrices, validation metrics, and per-class F1.
+Each run is tracked in MLflow under the `flowclimb-challenge-models` experiment. By default, local MLflow files are written to `ml/mlruns`. Runs log dataset parameters, class distribution, train/validation row counts, validation accuracy, validation balanced accuracy, validation macro/weighted precision/recall/F1, validation per-class precision/recall/F1/support, train accuracy, validation classification reports, validation confusion matrices, permutation feature importance, and validation metrics with the heuristic features (`deaths_delta`, `height_delta`) zeroed out.
 
 ## MLflow UI
 
@@ -93,6 +102,11 @@ For each model candidate, the script writes:
 - `<model_name>.validation_confusion_matrix.png`
 - `<model_name>.validation_metrics.png`
 - `<model_name>.validation_per_class_f1.png`
+- `<model_name>.validation_permutation_importance.csv`
+- `<model_name>.validation_permutation_importance.json`
+- `<model_name>.validation_permutation_importance.png`
+- `<model_name>.validation_heuristic_features_zeroed_classification_report.json`
+- `<model_name>.validation_heuristic_features_zeroed_confusion_matrix.json`
 - `model_validation_metric_comparison.png`
 
 It also writes `manifest.json`, which records the available ONNX files and feature order. The game loads promoted model artifacts from stable aliases in `src/models/flow/`:
