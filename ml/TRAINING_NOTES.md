@@ -58,3 +58,7 @@ Learnings:
 ## Deaths/height-only diagnostic
 
 Using only `deaths_delta` and `height_delta` on the `2026-06-01-20-38` train/validation split, `rbf_svc` reached ~99.4% validation accuracy. This confirms the labels are almost entirely explained by the known heuristic inputs. Logistic regression and Gaussian NB were lower because the rule is threshold/interaction based and the `appropriately_challenged` class occupies disconnected regions. A small decision tree or explicit rule baseline should reconstruct the heuristic most directly.
+
+## 2026-06-02-20-08 clean feature ablation
+
+On the `2026-06-02-20-08` split, `rbf_svc` fit very well when the heuristic features were present: heuristic-only reached 0.9912 validation accuracy / 0.9896 balanced accuracy, and the cleaned feature set plus heuristic features reached 0.9339 validation accuracy / 0.9394 balanced accuracy. With `deaths_delta` and `height_delta` ablated from the cleaned feature set, `rbf_svc` still reached 0.6211 validation accuracy / 0.6246 balanced accuracy, which is well above random guessing and suggests the remaining context/input features carry some label signal.

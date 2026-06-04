@@ -30,6 +30,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -49,6 +50,15 @@ MODEL_TARGETS = {
         random_state=42,
     ),
     "rbf_svc": SVC(kernel="rbf", C=1.0, gamma="scale", class_weight="balanced", probability=True, random_state=42),
+    "random_forest": RandomForestClassifier(
+        n_estimators=300,
+        max_depth=None,
+        min_samples_leaf=2,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1,
+    ),
+    "gradient_boosting": GradientBoostingClassifier(random_state=42),
     "gaussian_nb": GaussianNB(var_smoothing=1e-8),
 }
 
@@ -123,7 +133,7 @@ def export_onnx(pipeline: Pipeline, output_path: Path, feature_count: int, model
     initial_types = [("float_input", FloatTensorType([None, feature_count]))]
     final_estimator = pipeline.steps[-1][1]
     options = {}
-    if model_name in {"logistic_regression", "gaussian_nb", "rbf_svc"}:
+    if model_name in {"logistic_regression", "gaussian_nb", "rbf_svc", "random_forest", "gradient_boosting"}:
         options[id(final_estimator)] = {"zipmap": False}
     onnx_model = convert_sklearn(pipeline, initial_types=initial_types, target_opset=15, options=options)
     output_path.write_bytes(onnx_model.SerializeToString())

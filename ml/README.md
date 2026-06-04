@@ -57,6 +57,8 @@ The script trains and exports these model candidates:
 
 - `logistic_regression` — L2-regularized logistic regression on scaled features.
 - `rbf_svc` — radial-basis-function SVM on scaled features.
+- `random_forest` — balanced random forest classifier.
+- `gradient_boosting` — gradient boosting classifier.
 - `gaussian_nb` — Gaussian Naive Bayes with configured variance smoothing.
 
 Each run is tracked in MLflow under the `flowclimb-challenge-models` experiment. By default, local MLflow files are written to `ml/mlruns`. Runs log dataset parameters, class distribution, train/validation row counts, validation accuracy, validation balanced accuracy, validation macro/weighted precision/recall/F1, validation per-class precision/recall/F1/support, train accuracy, validation classification reports, validation confusion matrices, permutation feature importance, and validation metrics with the heuristic features (`deaths_delta`, `height_delta`) zeroed out.
@@ -121,16 +123,27 @@ Promote a selected candidate without changing game JavaScript:
 python ml/scripts/promote_model.py --model logistic_regression
 ```
 
-Valid model names are currently `logistic_regression`, `rbf_svc`, and `gaussian_nb`. The currently promoted Flow ML model is recorded in `src/models/flow/manifest.json` as `active_model`.
+Valid model names are currently `logistic_regression`, `rbf_svc`, `random_forest`, `gradient_boosting`, and `gaussian_nb`. The currently promoted Flow ML model is recorded in `src/models/flow/manifest.json` as `active_model`.
 
 ## CSV expectations
 
 The CSV must include the target column passed with `--target`.
 
-By default, the script uses all numeric columns except the target as model features. To lock feature order explicitly, pass:
+By default, the script uses the locked feature set:
 
-```bash
---features height_delta flags_delta deaths_delta seconds_since_flag difficulty
+```text
+difficulty
+meta_previous_difficulty
+meta_jump_key_presses
+meta_left_key_presses
+meta_right_key_presses
+meta_total_horizontal_movement_px
+meta_skip_reward_total
+meta_skipped_platforms
+device_type_desktop
+device_type_mobile
+deaths_delta
+height_delta
 ```
 
-Feature order matters for ONNX inference and is saved in every metadata file plus `manifest.json`.
+To override feature order explicitly for experiments, pass `--features ...`. Feature order matters for ONNX inference and is saved in every metadata file plus `manifest.json`.

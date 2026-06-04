@@ -268,7 +268,7 @@ test('flow ML model loads active ONNX model with blocking failure behavior', () 
   assert.ok(fs.existsSync('src/models/flow/active.onnx'))
   assert.ok(fs.existsSync('src/models/flow/active.metadata.json'))
   const manifest = JSON.parse(fs.readFileSync('src/models/flow/manifest.json', 'utf8'))
-  assert.equal(manifest.active_model, 'gaussian_nb')
+  assert.equal(manifest.active_model, 'rbf_svc')
 })
 
 test('removed sudden death UI wording', () => {

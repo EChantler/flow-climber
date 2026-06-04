@@ -31,6 +31,7 @@ from sklearn.metrics import (
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -38,6 +39,20 @@ from sklearn.svm import SVC
 
 
 HEURISTIC_FEATURE_COLUMNS = ("deaths_delta", "height_delta")
+DEFAULT_FEATURE_COLUMNS = [
+    "difficulty",
+    "meta_previous_difficulty",
+    "meta_jump_key_presses",
+    "meta_left_key_presses",
+    "meta_right_key_presses",
+    "meta_total_horizontal_movement_px",
+    "meta_skip_reward_total",
+    "meta_skipped_platforms",
+    "device_type_desktop",
+    "device_type_mobile",
+    "deaths_delta",
+    "height_delta",
+]
 
 
 MODEL_TARGETS = {
@@ -50,6 +65,15 @@ MODEL_TARGETS = {
         random_state=42,
     ),
     "rbf_svc": SVC(kernel="rbf", C=1.0, gamma="scale", class_weight="balanced", probability=True, random_state=42),
+    "random_forest": RandomForestClassifier(
+        n_estimators=300,
+        max_depth=None,
+        min_samples_leaf=2,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1,
+    ),
+    "gradient_boosting": GradientBoostingClassifier(random_state=42),
     "gaussian_nb": GaussianNB(var_smoothing=1e-8),
 }
 
@@ -105,11 +129,10 @@ def resolve_feature_columns(frame: pd.DataFrame, target_column: str, requested: 
             raise ValueError(f"Requested feature columns missing from CSV: {missing}")
         return list(requested)
 
-    numeric_columns = frame.select_dtypes(include=[np.number]).columns.tolist()
-    features = [column for column in numeric_columns if column != target_column]
-    if not features:
-        raise ValueError("No numeric feature columns found. Pass --features to select columns explicitly.")
-    return features
+    missing = [column for column in DEFAULT_FEATURE_COLUMNS if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Default locked feature columns missing from CSV: {missing}")
+    return list(DEFAULT_FEATURE_COLUMNS)
 
 
 def build_pipeline(model_name: str) -> Pipeline:
@@ -130,7 +153,7 @@ def export_onnx(pipeline: Pipeline, output_path: Path, feature_count: int, model
     initial_types = [("float_input", FloatTensorType([None, feature_count]))]
     final_estimator = pipeline.steps[-1][1]
     options = {}
-    if model_name in {"logistic_regression", "gaussian_nb", "rbf_svc"}:
+    if model_name in {"logistic_regression", "gaussian_nb", "rbf_svc", "random_forest", "gradient_boosting"}:
         options[id(final_estimator)] = {"zipmap": False}
     onnx_model = convert_sklearn(pipeline, initial_types=initial_types, target_opset=15, options=options)
     output_path.write_bytes(onnx_model.SerializeToString())

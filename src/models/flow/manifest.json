@@ -1,82 +1,661 @@
 {
   "active_metadata_file": "active.metadata.json",
-  "active_model": "gaussian_nb",
+  "active_model": "rbf_svc",
   "active_onnx_file": "active.onnx",
   "feature_columns": [
-    "height_delta",
-    "flags_delta",
-    "deaths_delta",
-    "seconds_since_flag",
     "difficulty",
-    "interval_flags_per_minute",
-    "interval_deaths_per_minute"
+    "meta_previous_difficulty",
+    "meta_jump_key_presses",
+    "meta_left_key_presses",
+    "meta_right_key_presses",
+    "meta_total_horizontal_movement_px",
+    "meta_skip_reward_total",
+    "meta_skipped_platforms",
+    "device_type_desktop",
+    "device_type_mobile",
+    "deaths_delta",
+    "height_delta"
   ],
   "models": [
     {
+      "ablated_feature_columns": [
+        "deaths_delta",
+        "height_delta"
+      ],
+      "class_distribution": {
+        "appropriately_challenged": 629,
+        "over_challenged": 256,
+        "under_challenged": 401
+      },
       "classes": [
         "appropriately_challenged",
         "over_challenged",
         "under_challenged"
       ],
       "feature_columns": [
-        "height_delta",
-        "flags_delta",
-        "deaths_delta",
-        "seconds_since_flag",
         "difficulty",
-        "interval_flags_per_minute",
-        "interval_deaths_per_minute"
+        "meta_previous_difficulty",
+        "meta_jump_key_presses",
+        "meta_left_key_presses",
+        "meta_right_key_presses",
+        "meta_total_horizontal_movement_px",
+        "meta_skip_reward_total",
+        "meta_skipped_platforms",
+        "device_type_desktop",
+        "device_type_mobile",
+        "deaths_delta",
+        "height_delta"
       ],
       "metrics": {
-        "accuracy": 1.0
+        "train_accuracy": 0.9046270066100094,
+        "validation_accuracy": 0.9162995594713657,
+        "validation_balanced_accuracy": 0.9172158073566523,
+        "validation_f1_appropriately_challenged": 0.9203539823008849,
+        "validation_f1_macro": 0.9186399587536465,
+        "validation_f1_over_challenged": 0.945054945054945,
+        "validation_f1_under_challenged": 0.8905109489051095,
+        "validation_f1_weighted": 0.9159164842957424,
+        "validation_heuristic_features_zeroed_accuracy": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_balanced_accuracy": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_f1_appropriately_challenged": 0.6568047337278107,
+        "validation_heuristic_features_zeroed_f1_macro": 0.21893491124260356,
+        "validation_heuristic_features_zeroed_f1_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_weighted": 0.32116883455412765,
+        "validation_heuristic_features_zeroed_precision_appropriately_challenged": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_precision_macro": 0.1629955947136564,
+        "validation_heuristic_features_zeroed_precision_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_weighted": 0.23910807506452678,
+        "validation_heuristic_features_zeroed_recall_appropriately_challenged": 1.0,
+        "validation_heuristic_features_zeroed_recall_macro": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_recall_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_weighted": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_support_appropriately_challenged": 111,
+        "validation_heuristic_features_zeroed_support_over_challenged": 45,
+        "validation_heuristic_features_zeroed_support_under_challenged": 71,
+        "validation_precision_appropriately_challenged": 0.9043478260869565,
+        "validation_precision_macro": 0.9211242863416776,
+        "validation_precision_over_challenged": 0.9347826086956522,
+        "validation_precision_under_challenged": 0.9242424242424242,
+        "validation_precision_weighted": 0.9166036925469985,
+        "validation_recall_appropriately_challenged": 0.9369369369369369,
+        "validation_recall_macro": 0.9172158073566523,
+        "validation_recall_over_challenged": 0.9555555555555556,
+        "validation_recall_under_challenged": 0.8591549295774648,
+        "validation_recall_weighted": 0.9162995594713657,
+        "validation_support_appropriately_challenged": 111,
+        "validation_support_over_challenged": 45,
+        "validation_support_under_challenged": 71
       },
       "model_name": "logistic_regression",
       "onnx_file": "logistic_regression.onnx",
-      "target_column": "challenge_label"
+      "target_column": "challenge_label",
+      "top_permutation_importance": [
+        {
+          "feature": "height_delta",
+          "importance_mean": 0.3365638766519824,
+          "importance_std": 0.0380592265488197
+        },
+        {
+          "feature": "deaths_delta",
+          "importance_mean": 0.31585903083700445,
+          "importance_std": 0.019999223723024068
+        },
+        {
+          "feature": "meta_total_horizontal_movement_px",
+          "importance_mean": 0.007048458149779768,
+          "importance_std": 0.006292007426028954
+        },
+        {
+          "feature": "meta_right_key_presses",
+          "importance_mean": 0.006167400881057295,
+          "importance_std": 0.008854515965745269
+        },
+        {
+          "feature": "meta_skip_reward_total",
+          "importance_mean": 0.006167400881057295,
+          "importance_std": 0.005975621130506857
+        },
+        {
+          "feature": "meta_jump_key_presses",
+          "importance_mean": 0.0004405286343612369,
+          "importance_std": 0.0036593056664837617
+        },
+        {
+          "feature": "meta_previous_difficulty",
+          "importance_mean": 0.0004405286343612369,
+          "importance_std": 0.0013215859030837106
+        },
+        {
+          "feature": "difficulty",
+          "importance_mean": 0.0004405286343612369,
+          "importance_std": 0.0013215859030837106
+        },
+        {
+          "feature": "device_type_desktop",
+          "importance_mean": 0.0,
+          "importance_std": 0.0019701039449337506
+        },
+        {
+          "feature": "device_type_mobile",
+          "importance_mean": 0.0,
+          "importance_std": 0.0019701039449337506
+        }
+      ]
     },
     {
-      "classes": [
-        "appropriately_challenged",
-        "over_challenged",
-        "under_challenged"
-      ],
-      "feature_columns": [
-        "height_delta",
-        "flags_delta",
+      "ablated_feature_columns": [
         "deaths_delta",
-        "seconds_since_flag",
-        "difficulty",
-        "interval_flags_per_minute",
-        "interval_deaths_per_minute"
+        "height_delta"
       ],
-      "metrics": {
-        "accuracy": 0.9722222222222222
+      "class_distribution": {
+        "appropriately_challenged": 629,
+        "over_challenged": 256,
+        "under_challenged": 401
       },
-      "model_name": "linear_svc",
-      "onnx_file": "linear_svc.onnx",
-      "target_column": "challenge_label"
-    },
-    {
       "classes": [
         "appropriately_challenged",
         "over_challenged",
         "under_challenged"
       ],
       "feature_columns": [
-        "height_delta",
-        "flags_delta",
-        "deaths_delta",
-        "seconds_since_flag",
         "difficulty",
-        "interval_flags_per_minute",
-        "interval_deaths_per_minute"
+        "meta_previous_difficulty",
+        "meta_jump_key_presses",
+        "meta_left_key_presses",
+        "meta_right_key_presses",
+        "meta_total_horizontal_movement_px",
+        "meta_skip_reward_total",
+        "meta_skipped_platforms",
+        "device_type_desktop",
+        "device_type_mobile",
+        "deaths_delta",
+        "height_delta"
       ],
       "metrics": {
-        "accuracy": 1.0
+        "train_accuracy": 0.9376770538243626,
+        "validation_accuracy": 0.933920704845815,
+        "validation_balanced_accuracy": 0.9393788154351536,
+        "validation_f1_appropriately_challenged": 0.9400921658986175,
+        "validation_f1_macro": 0.9306829066609437,
+        "validation_f1_over_challenged": 0.9148936170212766,
+        "validation_f1_under_challenged": 0.9370629370629371,
+        "validation_f1_weighted": 0.9341493908025221,
+        "validation_heuristic_features_zeroed_accuracy": 0.5022026431718062,
+        "validation_heuristic_features_zeroed_balanced_accuracy": 0.3535140774577394,
+        "validation_heuristic_features_zeroed_f1_appropriately_challenged": 0.662613981762918,
+        "validation_heuristic_features_zeroed_f1_macro": 0.26911935513909774,
+        "validation_heuristic_features_zeroed_f1_over_challenged": 0.043478260869565216,
+        "validation_heuristic_features_zeroed_f1_under_challenged": 0.10126582278481013,
+        "validation_heuristic_features_zeroed_f1_weighted": 0.3643019697468539,
+        "validation_heuristic_features_zeroed_precision_appropriately_challenged": 0.5,
+        "validation_heuristic_features_zeroed_precision_macro": 0.6666666666666666,
+        "validation_heuristic_features_zeroed_precision_over_challenged": 1.0,
+        "validation_heuristic_features_zeroed_precision_under_challenged": 0.5,
+        "validation_heuristic_features_zeroed_precision_weighted": 0.5991189427312775,
+        "validation_heuristic_features_zeroed_recall_appropriately_challenged": 0.9819819819819819,
+        "validation_heuristic_features_zeroed_recall_macro": 0.3535140774577394,
+        "validation_heuristic_features_zeroed_recall_over_challenged": 0.022222222222222223,
+        "validation_heuristic_features_zeroed_recall_under_challenged": 0.056338028169014086,
+        "validation_heuristic_features_zeroed_recall_weighted": 0.5022026431718062,
+        "validation_heuristic_features_zeroed_support_appropriately_challenged": 111,
+        "validation_heuristic_features_zeroed_support_over_challenged": 45,
+        "validation_heuristic_features_zeroed_support_under_challenged": 71,
+        "validation_precision_appropriately_challenged": 0.9622641509433962,
+        "validation_precision_macro": 0.9234569089690382,
+        "validation_precision_over_challenged": 0.8775510204081632,
+        "validation_precision_under_challenged": 0.9305555555555556,
+        "validation_precision_weighted": 0.9355531326763382,
+        "validation_recall_appropriately_challenged": 0.918918918918919,
+        "validation_recall_macro": 0.9393788154351536,
+        "validation_recall_over_challenged": 0.9555555555555556,
+        "validation_recall_under_challenged": 0.9436619718309859,
+        "validation_recall_weighted": 0.933920704845815,
+        "validation_support_appropriately_challenged": 111,
+        "validation_support_over_challenged": 45,
+        "validation_support_under_challenged": 71
+      },
+      "model_name": "rbf_svc",
+      "onnx_file": "rbf_svc.onnx",
+      "target_column": "challenge_label",
+      "top_permutation_importance": [
+        {
+          "feature": "deaths_delta",
+          "importance_mean": 0.3312775330396477,
+          "importance_std": 0.02035985904544729
+        },
+        {
+          "feature": "height_delta",
+          "importance_mean": 0.3286343612334802,
+          "importance_std": 0.03396358637426676
+        },
+        {
+          "feature": "meta_total_horizontal_movement_px",
+          "importance_mean": 0.02643171806167407,
+          "importance_std": 0.010045598459023237
+        },
+        {
+          "feature": "meta_skipped_platforms",
+          "importance_mean": 0.011894273127753341,
+          "importance_std": 0.004845814977973561
+        },
+        {
+          "feature": "meta_previous_difficulty",
+          "importance_mean": 0.011013215859030877,
+          "importance_std": 0.008643795978127129
+        },
+        {
+          "feature": "difficulty",
+          "importance_mean": 0.011013215859030877,
+          "importance_std": 0.008643795978127129
+        },
+        {
+          "feature": "meta_jump_key_presses",
+          "importance_mean": 0.009691629955947167,
+          "importance_std": 0.005844272758335508
+        },
+        {
+          "feature": "meta_skip_reward_total",
+          "importance_mean": 0.008810572687224693,
+          "importance_std": 0.005910311834801203
+        },
+        {
+          "feature": "meta_right_key_presses",
+          "importance_mean": 0.006607929515418542,
+          "importance_std": 0.004061473329203928
+        },
+        {
+          "feature": "meta_left_key_presses",
+          "importance_mean": 0.006607929515418531,
+          "importance_std": 0.00451407522729498
+        }
+      ]
+    },
+    {
+      "ablated_feature_columns": [
+        "deaths_delta",
+        "height_delta"
+      ],
+      "class_distribution": {
+        "appropriately_challenged": 629,
+        "over_challenged": 256,
+        "under_challenged": 401
+      },
+      "classes": [
+        "appropriately_challenged",
+        "over_challenged",
+        "under_challenged"
+      ],
+      "feature_columns": [
+        "difficulty",
+        "meta_previous_difficulty",
+        "meta_jump_key_presses",
+        "meta_left_key_presses",
+        "meta_right_key_presses",
+        "meta_total_horizontal_movement_px",
+        "meta_skip_reward_total",
+        "meta_skipped_platforms",
+        "device_type_desktop",
+        "device_type_mobile",
+        "deaths_delta",
+        "height_delta"
+      ],
+      "metrics": {
+        "train_accuracy": 0.9952785646836638,
+        "validation_accuracy": 0.9955947136563876,
+        "validation_balanced_accuracy": 0.9925925925925926,
+        "validation_f1_appropriately_challenged": 0.9955156950672646,
+        "validation_f1_macro": 0.9947599133370283,
+        "validation_f1_over_challenged": 0.9887640449438202,
+        "validation_f1_under_challenged": 1.0,
+        "validation_f1_weighted": 0.9955798421803449,
+        "validation_heuristic_features_zeroed_accuracy": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_balanced_accuracy": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_f1_appropriately_challenged": 0.6568047337278107,
+        "validation_heuristic_features_zeroed_f1_macro": 0.21893491124260356,
+        "validation_heuristic_features_zeroed_f1_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_weighted": 0.32116883455412765,
+        "validation_heuristic_features_zeroed_precision_appropriately_challenged": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_precision_macro": 0.1629955947136564,
+        "validation_heuristic_features_zeroed_precision_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_weighted": 0.23910807506452678,
+        "validation_heuristic_features_zeroed_recall_appropriately_challenged": 1.0,
+        "validation_heuristic_features_zeroed_recall_macro": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_recall_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_weighted": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_support_appropriately_challenged": 111,
+        "validation_heuristic_features_zeroed_support_over_challenged": 45,
+        "validation_heuristic_features_zeroed_support_under_challenged": 71,
+        "validation_precision_appropriately_challenged": 0.9910714285714286,
+        "validation_precision_macro": 0.9970238095238096,
+        "validation_precision_over_challenged": 1.0,
+        "validation_precision_under_challenged": 1.0,
+        "validation_precision_weighted": 0.9956340465701699,
+        "validation_recall_appropriately_challenged": 1.0,
+        "validation_recall_macro": 0.9925925925925926,
+        "validation_recall_over_challenged": 0.9777777777777777,
+        "validation_recall_under_challenged": 1.0,
+        "validation_recall_weighted": 0.9955947136563876,
+        "validation_support_appropriately_challenged": 111,
+        "validation_support_over_challenged": 45,
+        "validation_support_under_challenged": 71
+      },
+      "model_name": "random_forest",
+      "onnx_file": "random_forest.onnx",
+      "target_column": "challenge_label",
+      "top_permutation_importance": [
+        {
+          "feature": "height_delta",
+          "importance_mean": 0.4418502202643172,
+          "importance_std": 0.04042555364674419
+        },
+        {
+          "feature": "deaths_delta",
+          "importance_mean": 0.38237885462555055,
+          "importance_std": 0.023459959393294
+        },
+        {
+          "feature": "difficulty",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_previous_difficulty",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_left_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_jump_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_right_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_total_horizontal_movement_px",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_skipped_platforms",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_skip_reward_total",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        }
+      ]
+    },
+    {
+      "ablated_feature_columns": [
+        "deaths_delta",
+        "height_delta"
+      ],
+      "class_distribution": {
+        "appropriately_challenged": 629,
+        "over_challenged": 256,
+        "under_challenged": 401
+      },
+      "classes": [
+        "appropriately_challenged",
+        "over_challenged",
+        "under_challenged"
+      ],
+      "feature_columns": [
+        "difficulty",
+        "meta_previous_difficulty",
+        "meta_jump_key_presses",
+        "meta_left_key_presses",
+        "meta_right_key_presses",
+        "meta_total_horizontal_movement_px",
+        "meta_skip_reward_total",
+        "meta_skipped_platforms",
+        "device_type_desktop",
+        "device_type_mobile",
+        "deaths_delta",
+        "height_delta"
+      ],
+      "metrics": {
+        "train_accuracy": 1.0,
+        "validation_accuracy": 0.9911894273127754,
+        "validation_balanced_accuracy": 0.9851851851851853,
+        "validation_f1_appropriately_challenged": 0.9910714285714286,
+        "validation_f1_macro": 0.989448051948052,
+        "validation_f1_over_challenged": 0.9772727272727273,
+        "validation_f1_under_challenged": 1.0,
+        "validation_f1_weighted": 0.9911286400823845,
+        "validation_heuristic_features_zeroed_accuracy": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_balanced_accuracy": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_f1_appropriately_challenged": 0.6568047337278107,
+        "validation_heuristic_features_zeroed_f1_macro": 0.21893491124260356,
+        "validation_heuristic_features_zeroed_f1_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_f1_weighted": 0.32116883455412765,
+        "validation_heuristic_features_zeroed_precision_appropriately_challenged": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_precision_macro": 0.1629955947136564,
+        "validation_heuristic_features_zeroed_precision_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_precision_weighted": 0.23910807506452678,
+        "validation_heuristic_features_zeroed_recall_appropriately_challenged": 1.0,
+        "validation_heuristic_features_zeroed_recall_macro": 0.3333333333333333,
+        "validation_heuristic_features_zeroed_recall_over_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_under_challenged": 0.0,
+        "validation_heuristic_features_zeroed_recall_weighted": 0.4889867841409692,
+        "validation_heuristic_features_zeroed_support_appropriately_challenged": 111,
+        "validation_heuristic_features_zeroed_support_over_challenged": 45,
+        "validation_heuristic_features_zeroed_support_under_challenged": 71,
+        "validation_precision_appropriately_challenged": 0.9823008849557522,
+        "validation_precision_macro": 0.9941002949852508,
+        "validation_precision_over_challenged": 1.0,
+        "validation_precision_under_challenged": 1.0,
+        "validation_precision_weighted": 0.9913453666523723,
+        "validation_recall_appropriately_challenged": 1.0,
+        "validation_recall_macro": 0.9851851851851853,
+        "validation_recall_over_challenged": 0.9555555555555556,
+        "validation_recall_under_challenged": 1.0,
+        "validation_recall_weighted": 0.9911894273127754,
+        "validation_support_appropriately_challenged": 111,
+        "validation_support_over_challenged": 45,
+        "validation_support_under_challenged": 71
+      },
+      "model_name": "gradient_boosting",
+      "onnx_file": "gradient_boosting.onnx",
+      "target_column": "challenge_label",
+      "top_permutation_importance": [
+        {
+          "feature": "height_delta",
+          "importance_mean": 0.4493392070484582,
+          "importance_std": 0.04118412649346342
+        },
+        {
+          "feature": "deaths_delta",
+          "importance_mean": 0.37709251101321584,
+          "importance_std": 0.025168029704115764
+        },
+        {
+          "feature": "meta_total_horizontal_movement_px",
+          "importance_mean": 0.003964757709251121,
+          "importance_std": 0.004599253968683075
+        },
+        {
+          "feature": "difficulty",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_left_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_jump_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_previous_difficulty",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_right_key_presses",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_skipped_platforms",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        },
+        {
+          "feature": "meta_skip_reward_total",
+          "importance_mean": 0.0,
+          "importance_std": 0.0
+        }
+      ]
+    },
+    {
+      "ablated_feature_columns": [
+        "deaths_delta",
+        "height_delta"
+      ],
+      "class_distribution": {
+        "appropriately_challenged": 629,
+        "over_challenged": 256,
+        "under_challenged": 401
+      },
+      "classes": [
+        "appropriately_challenged",
+        "over_challenged",
+        "under_challenged"
+      ],
+      "feature_columns": [
+        "difficulty",
+        "meta_previous_difficulty",
+        "meta_jump_key_presses",
+        "meta_left_key_presses",
+        "meta_right_key_presses",
+        "meta_total_horizontal_movement_px",
+        "meta_skip_reward_total",
+        "meta_skipped_platforms",
+        "device_type_desktop",
+        "device_type_mobile",
+        "deaths_delta",
+        "height_delta"
+      ],
+      "metrics": {
+        "train_accuracy": 0.8271954674220963,
+        "validation_accuracy": 0.7797356828193832,
+        "validation_balanced_accuracy": 0.768935132315414,
+        "validation_f1_appropriately_challenged": 0.7966804979253111,
+        "validation_f1_macro": 0.7805298629448006,
+        "validation_f1_over_challenged": 0.8409090909090909,
+        "validation_f1_under_challenged": 0.704,
+        "validation_f1_weighted": 0.7764601073155005,
+        "validation_heuristic_features_zeroed_accuracy": 0.5374449339207048,
+        "validation_heuristic_features_zeroed_balanced_accuracy": 0.4046074243257342,
+        "validation_heuristic_features_zeroed_f1_appropriately_challenged": 0.6622950819672131,
+        "validation_heuristic_features_zeroed_f1_macro": 0.36566837873389096,
+        "validation_heuristic_features_zeroed_f1_over_challenged": 0.0425531914893617,
+        "validation_heuristic_features_zeroed_f1_under_challenged": 0.39215686274509803,
+        "validation_heuristic_features_zeroed_f1_weighted": 0.45494618929640485,
+        "validation_heuristic_features_zeroed_precision_appropriately_challenged": 0.520618556701031,
+        "validation_heuristic_features_zeroed_precision_macro": 0.5552599490078705,
+        "validation_heuristic_features_zeroed_precision_over_challenged": 0.5,
+        "validation_heuristic_features_zeroed_precision_under_challenged": 0.6451612903225806,
+        "validation_heuristic_features_zeroed_precision_weighted": 0.5554850722762893,
+        "validation_heuristic_features_zeroed_recall_appropriately_challenged": 0.9099099099099099,
+        "validation_heuristic_features_zeroed_recall_macro": 0.4046074243257342,
+        "validation_heuristic_features_zeroed_recall_over_challenged": 0.022222222222222223,
+        "validation_heuristic_features_zeroed_recall_under_challenged": 0.28169014084507044,
+        "validation_heuristic_features_zeroed_recall_weighted": 0.5374449339207048,
+        "validation_heuristic_features_zeroed_support_appropriately_challenged": 111,
+        "validation_heuristic_features_zeroed_support_over_challenged": 45,
+        "validation_heuristic_features_zeroed_support_under_challenged": 71,
+        "validation_precision_appropriately_challenged": 0.7384615384615385,
+        "validation_precision_macro": 0.8045804898518076,
+        "validation_precision_over_challenged": 0.8604651162790697,
+        "validation_precision_under_challenged": 0.8148148148148148,
+        "validation_precision_weighted": 0.7865286909852016,
+        "validation_recall_appropriately_challenged": 0.8648648648648649,
+        "validation_recall_macro": 0.768935132315414,
+        "validation_recall_over_challenged": 0.8222222222222222,
+        "validation_recall_under_challenged": 0.6197183098591549,
+        "validation_recall_weighted": 0.7797356828193832,
+        "validation_support_appropriately_challenged": 111,
+        "validation_support_over_challenged": 45,
+        "validation_support_under_challenged": 71
       },
       "model_name": "gaussian_nb",
       "onnx_file": "gaussian_nb.onnx",
-      "target_column": "challenge_label"
+      "target_column": "challenge_label",
+      "top_permutation_importance": [
+        {
+          "feature": "deaths_delta",
+          "importance_mean": 0.21057268722466954,
+          "importance_std": 0.021108631807420147
+        },
+        {
+          "feature": "height_delta",
+          "importance_mean": 0.1317180616740088,
+          "importance_std": 0.03510159138653984
+        },
+        {
+          "feature": "meta_skipped_platforms",
+          "importance_mean": 0.014096916299559415,
+          "importance_std": 0.009198507937366126
+        },
+        {
+          "feature": "meta_total_horizontal_movement_px",
+          "importance_mean": 0.009691629955947112,
+          "importance_std": 0.010572687224669596
+        },
+        {
+          "feature": "meta_skip_reward_total",
+          "importance_mean": 0.0008810572687224405,
+          "importance_std": 0.004744638596594269
+        },
+        {
+          "feature": "meta_jump_key_presses",
+          "importance_mean": -0.009251101321585931,
+          "importance_std": 0.008909140271434662
+        },
+        {
+          "feature": "meta_left_key_presses",
+          "importance_mean": -0.010572687224669652,
+          "importance_std": 0.009489277193188561
+        },
+        {
+          "feature": "meta_previous_difficulty",
+          "importance_mean": -0.014096916299559503,
+          "importance_std": 0.010572687224669605
+        },
+        {
+          "feature": "difficulty",
+          "importance_mean": -0.014096916299559503,
+          "importance_std": 0.010572687224669605
+        },
+        {
+          "feature": "device_type_mobile",
+          "importance_mean": -0.016740088105726903,
+          "importance_std": 0.005137402550524517
+        }
+      ]
     }
   ],
   "target_column": "challenge_label"
