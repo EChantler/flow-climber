@@ -14,6 +14,7 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
   resetWorld() {
     this.screenState = "playing"
     this.setTrainIntroVisible(false)
+    this.setFlowIntroVisible(false)
     this.setMenuVisible(false)
     this.setHudVisible(true)
     this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)

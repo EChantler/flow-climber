@@ -212,6 +212,7 @@ test('menu modes and model display behavior are wired', () => {
   assert.match(gameRulesSource(), /FLOW_MODEL_NAMES = \[/)
   assert.match(runStateSource(), /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? Phaser\.Utils\.Array\.GetRandom\(FLOW_MODEL_NAMES\) : null/)
   assert.match(constants, /PROMOTED_ONNX: "promoted_onnx"/)
+  assert.match(runStateSource(), /this\.setFlowIntroVisible\(false\)/)
   assert.match(runStateSource(), /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
   assert.match(rendering, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
   assert.match(ui, /promoted_model_name/)
