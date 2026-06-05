@@ -43,10 +43,10 @@ const FLOWCLIMB_UI_METHODS = {
       return button
     }
 
-    const trainButton = makeButton(390, "Train mode", FLOWCLIMB_MODES.TRAIN)
-    const flowButton = makeButton(470, "Flow mode — coming soon", FLOWCLIMB_MODES.FLOW, { enabled: false })
+    const trainButton = makeButton(390, "Train mode — locked", FLOWCLIMB_MODES.TRAIN, { enabled: false })
+    const flowButton = makeButton(470, "Flow mode", FLOWCLIMB_MODES.FLOW)
     this.menuButtons = [trainButton, flowButton]
-    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train: linear difficulty increase. Flow: adaptive difficulty is coming soon.", {
+    const hint = this.add.text(SCREEN_WIDTH / 2, 552, "Train mode is locked. Flow mode uses the active adaptive difficulty model.", {
       fontSize: "16px",
       color: "#93a4bd",
       align: "center",

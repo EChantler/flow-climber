@@ -62,3 +62,7 @@ Using only `deaths_delta` and `height_delta` on the `2026-06-01-20-38` train/val
 ## 2026-06-02-20-08 clean feature ablation
 
 On the `2026-06-02-20-08` split, `rbf_svc` fit very well when the heuristic features were present: heuristic-only reached 0.9912 validation accuracy / 0.9896 balanced accuracy, and the cleaned feature set plus heuristic features reached 0.9339 validation accuracy / 0.9394 balanced accuracy. With `deaths_delta` and `height_delta` ablated from the cleaned feature set, `rbf_svc` still reached 0.6211 validation accuracy / 0.6246 balanced accuracy, which is well above random guessing and suggests the remaining context/input features carry some label signal.
+
+## Promoted RBF SVC held-out test evaluation
+
+The promoted `rbf_svc` model was evaluated once on the held-out `2026-06-02-20-08` test split (228 rows). Test performance was slightly below validation but still strong: 0.9035 accuracy, 0.9093 balanced accuracy, 0.9007 macro F1, and 0.9032 weighted F1. Validation for the same model was 0.9339 accuracy, 0.9394 balanced accuracy, 0.9307 macro F1, and 0.9341 weighted F1, so test was roughly 3 percentage points lower. This suggests mild validation optimism but not severe overfitting.
