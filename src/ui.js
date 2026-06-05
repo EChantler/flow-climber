@@ -33,6 +33,8 @@ const FLOWCLIMB_UI_METHODS = {
         button.on("pointerdown", () => {
           if (mode === FLOWCLIMB_MODES.TRAIN) {
             this.showTrainModeIntro()
+          } else if (mode === FLOWCLIMB_MODES.FLOW) {
+            this.showFlowModeIntro()
           } else {
             this.startRun(mode)
           }
@@ -92,6 +94,44 @@ const FLOWCLIMB_UI_METHODS = {
     trainIntroBackButton.on("pointerdown", () => this.showMenu())
     this.trainIntroTexts = [trainIntroTitle, trainIntroBody, trainIntroStartButton, trainIntroBackButton]
     this.setTrainIntroVisible(false)
+
+    const flowIntroTitle = this.add.text(SCREEN_WIDTH / 2, 140, "Flow mode", {
+      fontSize: "46px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    }).setOrigin(0.5)
+    const flowIntroBody = this.add.text(
+      SCREEN_WIDTH / 2,
+      306,
+      "\n\nFlow mode uses an adaptive difficulty model. The game will adjust as you play.\n\nPlay for as long as you want. For the study, it is beneficial if you play a couple of games, preferably with some rest in-between sessions.",
+      {
+        fontSize: "22px",
+        color: "#d6deea",
+        align: "center",
+        wordWrap: { width: 590 },
+        lineSpacing: 10,
+      },
+    ).setOrigin(0.5)
+    const flowIntroStartButton = this.add.text(SCREEN_WIDTH / 2, 540, "Start flow run", {
+      fontSize: "28px",
+      color: "#ffffff",
+      backgroundColor: "rgba(55, 83, 126, 0.82)",
+      padding: { x: 28, y: 14 },
+    }).setOrigin(0.5)
+    flowIntroStartButton.setInteractive({ useHandCursor: true })
+    flowIntroStartButton.on("pointerdown", () => this.startRun(FLOWCLIMB_MODES.FLOW))
+    flowIntroStartButton.on("pointerover", () => flowIntroStartButton.setStyle({ backgroundColor: "rgba(77, 112, 168, 0.96)" }))
+    flowIntroStartButton.on("pointerout", () => flowIntroStartButton.setStyle({ backgroundColor: "rgba(55, 83, 126, 0.82)" }))
+    const flowIntroBackButton = this.add.text(SCREEN_WIDTH / 2, 624, "Back to menu", {
+      fontSize: "20px",
+      color: "#d6deea",
+      backgroundColor: "rgba(55, 83, 126, 0.45)",
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5)
+    flowIntroBackButton.setInteractive({ useHandCursor: true })
+    flowIntroBackButton.on("pointerdown", () => this.showMenu())
+    this.flowIntroTexts = [flowIntroTitle, flowIntroBody, flowIntroStartButton, flowIntroBackButton]
+    this.setFlowIntroVisible(false)
   },
 
   setMenuVisible(visible) {
@@ -115,6 +155,12 @@ const FLOWCLIMB_UI_METHODS = {
     }
   },
 
+  setFlowIntroVisible(visible) {
+    if (this.flowIntroTexts) {
+      this.flowIntroTexts.forEach((text) => text.setVisible(visible))
+    }
+  },
+
   showTrainModeIntro() {
     this.screenState = "mode_intro"
     this.resetFallbackKeys()
@@ -122,6 +168,18 @@ const FLOWCLIMB_UI_METHODS = {
     this.setHudVisible(false)
     this.setTouchControlsVisible(false)
     this.setTrainIntroVisible(true)
+    this.setFlowIntroVisible(false)
+    this.drawMenuBackground()
+  },
+
+  showFlowModeIntro() {
+    this.screenState = "mode_intro"
+    this.resetFallbackKeys()
+    this.setMenuVisible(false)
+    this.setHudVisible(false)
+    this.setTouchControlsVisible(false)
+    this.setTrainIntroVisible(false)
+    this.setFlowIntroVisible(true)
     this.drawMenuBackground()
   },
 
@@ -161,6 +219,7 @@ const FLOWCLIMB_UI_METHODS = {
     this.setTouchTeleportVisible(false)
     this.uploadIcon.setVisible(false)
     this.setTrainIntroVisible(false)
+    this.setFlowIntroVisible(false)
     this.setMenuVisible(true)
     this.drawMenuBackground()
   },
