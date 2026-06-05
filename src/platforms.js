@@ -196,6 +196,12 @@ const FLOWCLIMB_PLATFORM_METHODS = {
     this.updateScore()
     this.flashHudText(this.flagsText)
     this.showScoreIndicator("+1", "#55f28f")
+    if (this.flagsCollected >= 5) {
+      this.controlsText?.setVisible(false)
+      this.jumpText?.setVisible(false)
+      this.pauseHintText?.setVisible(false)
+      this.restartText?.setVisible(false)
+    }
   
     this.objectivePlatformIndex += 1
     this.retireResolvedPlatforms()

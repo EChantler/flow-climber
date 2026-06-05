@@ -17,7 +17,6 @@ const FLOWCLIMB_RUN_STATE_METHODS = {
     this.setFlowIntroVisible(false)
     this.setMenuVisible(false)
     this.setHudVisible(true)
-    this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
     this.setTouchControlsVisible(true)
     this.resetFallbackKeys()
     this.spawnPrefetch = null

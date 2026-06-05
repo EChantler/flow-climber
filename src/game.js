@@ -1,5 +1,5 @@
 const TELEMETRY_SCHEMA_VERSION = 6
-const GAME_VERSION = "v0.4.1"
+const GAME_VERSION = "v0.5.0"
 
 class EndlessClimberScene extends Phaser.Scene {
   constructor() {
@@ -22,9 +22,9 @@ class EndlessClimberScene extends Phaser.Scene {
     this.heightText = this.add.text(14, 34, "", { fontSize: "18px", color: "#ffffff" })
     this.flagsText = this.add.text(14, 56, "", { fontSize: "18px", color: "#ffffff" })
     this.deathsText = this.add.text(14, 78, "", { fontSize: "18px", color: "#ffffff" })
-    this.difficultyText = this.add.text(14, 100, "", { fontSize: "18px", color: "#ffffff" })
-    this.modeText = this.add.text(14, 122, "", { fontSize: "18px", color: "#ffffff" })
-    this.modelText = this.add.text(14, 144, "", { fontSize: "16px", color: "#d6deea" })
+    this.difficultyText = this.add.text(14, 100, "", { fontSize: "18px", color: "#ffffff" }).setVisible(false)
+    this.modeText = this.add.text(14, 122, "", { fontSize: "18px", color: "#ffffff" }).setVisible(false)
+    this.modelText = this.add.text(14, 144, "", { fontSize: "16px", color: "#d6deea" }).setVisible(false)
     this.controlsText = this.add.text(14, 176, "Move: A/D or Left/Right", { fontSize: "16px", color: "#d6deea" })
     this.jumpText = this.add.text(14, 196, "Jump: Space", { fontSize: "16px", color: "#d6deea" })
     this.pauseHintText = this.add.text(14, 216, "P: Pause/Resume", { fontSize: "16px", color: "#d6deea" })
@@ -70,9 +70,6 @@ class EndlessClimberScene extends Phaser.Scene {
       this.heightText,
       this.flagsText,
       this.deathsText,
-      this.difficultyText,
-      this.modeText,
-      this.modelText,
       this.controlsText,
       this.jumpText,
       this.pauseHintText,

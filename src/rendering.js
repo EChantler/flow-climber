@@ -73,13 +73,6 @@ const FLOWCLIMB_RENDERING_METHODS = {
     this.heightText.setText(`Height: ${this.heightClimbed}`)
     this.flagsText.setText(`Flags: ${this.flagsCollected}`)
     this.deathsText.setText(`Deaths: ${this.deathCount}`)
-    this.difficultyText.setText(`Difficulty: ${this.difficultyLevel}`)
-    this.modeText.setText(`Mode: ${this.gameMode === FLOWCLIMB_MODES.FLOW ? "Flow" : "Train"}`)
-    this.modelText.setVisible(this.gameMode === FLOWCLIMB_MODES.FLOW)
-    const modelStatus = this.selectedFlowModel === FLOWCLIMB_FLOW_MODELS.PROMOTED_ONNX
-      ? `, onnx: ${this.flowOnnxModel.status}`
-      : ""
-    this.modelText.setText(`Flow model: ${this.flowModelDisplayName()}${modelStatus} (${this.lastChallengeLabel})`)
     this.pauseOverlay.setVisible(this.isPaused)
     this.pauseOverlayHint.setVisible(this.isPaused)
     this.unstuckOverlay.setVisible(this.unstuckAvailable)

@@ -213,8 +213,8 @@ test('menu modes and model display behavior are wired', () => {
   assert.match(runStateSource(), /this\.selectedFlowModel = mode === FLOWCLIMB_MODES\.FLOW \? Phaser\.Utils\.Array\.GetRandom\(FLOW_MODEL_NAMES\) : null/)
   assert.match(constants, /PROMOTED_ONNX: "promoted_onnx"/)
   assert.match(runStateSource(), /this\.setFlowIntroVisible\(false\)/)
-  assert.match(runStateSource(), /this\.modelText\.setVisible\(this\.gameMode === FLOWCLIMB_MODES\.FLOW\)/)
-  assert.match(rendering, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
+  assert.doesNotMatch(runStateSource(), /this\.modelText\.setVisible/)
+  assert.doesNotMatch(rendering, /Flow model: \$\{this\.flowModelDisplayName\(\)\}/)
   assert.match(ui, /promoted_model_name/)
   assert.doesNotMatch(ui, /Flow: adaptive difficulty is coming soon\./)
   assert.match(ui, /showTrainModeIntro\(\)/)
@@ -228,6 +228,10 @@ test('menu modes and model display behavior are wired', () => {
   assert.match(ui, /Start flow run/)
   assert.match(game, /this\.screenState === "menu" \|\| this\.screenState === "mode_intro"/)
   assert.match(gameTelemetrySource(), /FLOWCLIMB_GAME_MODE_LABELS\.FLOW_ML/)
+  assert.match(platformsSource(), /flagsCollected >= 5/)
+  assert.match(platformsSource(), /controlsText\?\.setVisible\(false\)/)
+  assert.doesNotMatch(gameSource(), /difficultyText\.setText/)
+  assert.doesNotMatch(gameSource(), /modeText\.setText/)
 })
 
 test('mobile teleport button appears when unstuck is available', () => {
